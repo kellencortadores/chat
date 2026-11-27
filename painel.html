@@ -49,6 +49,9 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--butter);outline
 @media(prefers-color-scheme:dark){.me{color:#2A1F2D}}
 .other{align-self:flex-start;background:var(--theirs);border-bottom-left-radius:4px}
 .m button.copiar{display:block;margin-top:8px;background:var(--surf);color:var(--ink);border:1px solid var(--line);padding:6px 12px;font-size:.85rem}
+#menuFoto{position:fixed;z-index:20;display:flex;flex-direction:column;min-width:230px;background:var(--surf);border:1px solid var(--line);border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.3);overflow:hidden}
+#menuFoto button{background:none;color:var(--ink);border-radius:0;text-align:left;font-weight:500;padding:10px 14px}
+#menuFoto button:hover,#menuFoto button:focus-visible{background:var(--theirs)}
 .empty{color:var(--mute);margin:auto;text-align:center}
 #f{display:flex;gap:6px;margin-top:8px}
 #f input[type=text],#f input:not([type]){flex:1}
@@ -181,6 +184,61 @@ function botaoCopiar(texto,id){
   return b;
 }
 
+// ---- menu da foto (botão direito): prepara a foto e o prompt para o Gemini ----
+// Para mudar o prompt, edite o texto entre as crases.
+const PROMPT_GEMINI=`Gere a mesma imagem com fundo branco, com traços finos na cor preta. Retire qualquer perspectiva, visando criar imagens fáceis para vetorização posterior.
+
+Pegue a imagem de referência fornecida e crie uma nova arte gráfica minimalista e clean.
+O estilo final deve ser um vetor bidimensional de alto contraste, com fundo totalmente branco puro (#FFFFFF) e todos os elementos gráficos e texto em preto puro (#000000).
+
+Estilo: Minimalista, vetor 2D, alto contraste.
+Cores: Fundo Branco, Elementos Pretos (essencial para rasterização/corte).`;
+
+function paraPng(img){
+  return new Promise((ok,no)=>{
+    const c=document.createElement("canvas");c.width=img.naturalWidth;c.height=img.naturalHeight;
+    const x=c.getContext("2d");x.fillStyle="#fff";x.fillRect(0,0,c.width,c.height);x.drawImage(img,0,0);
+    c.toBlob(b=>b?ok(b):no(new Error("falha ao preparar a foto")),"image/png");
+  });
+}
+const copiarFoto=img=>navigator.clipboard.write([new ClipboardItem({"image/png":paraPng(img)})]);
+const copiarPrompt=()=>navigator.clipboard.writeText(PROMPT_GEMINI);
+// copia a foto e depois o prompt: ficam como dois itens no histórico (Win+V)
+async function copiarFotoEPrompt(img){
+  await copiarFoto(img);
+  await new Promise(r=>setTimeout(r,800));
+  await copiarPrompt();
+}
+let tAviso;
+function avisoRapido(t){aviso(t);clearTimeout(tAviso);tAviso=setTimeout(()=>aviso(""),12000)}
+function fecharMenuFoto(){const m=$("menuFoto");if(m)m.remove()}
+function abrirMenuFoto(x,y,img){
+  fecharMenuFoto();
+  const menu=document.createElement("div");menu.id="menuFoto";menu.setAttribute("role","menu");
+  const pronto="✔ Foto e prompt copiados. No Gemini: Ctrl+V cola o prompt; Win+V mostra a foto para colar.";
+  [["✨ Copiar foto + prompt",()=>copiarFotoEPrompt(img),pronto],
+   ["↗ Copiar e abrir o Gemini",async()=>{await copiarFotoEPrompt(img);if(!window.open("https://gemini.google.com/app","_blank"))throw new Error("o navegador bloqueou a nova aba")},pronto],
+   ["🖼 Copiar só a foto",()=>copiarFoto(img),"✔ Foto copiada."],
+   ["📝 Copiar só o prompt",copiarPrompt,"✔ Prompt copiado."],
+   ["🔍 Ampliar foto",async()=>ampliar(img.src),""]
+  ].forEach(([nome,fazer,ok])=>{
+    const b=document.createElement("button");b.type="button";b.textContent=nome;b.setAttribute("role","menuitem");
+    b.onclick=async()=>{
+      fecharMenuFoto();erro("");if(ok)aviso("Copiando… fique nesta tela um instante.");
+      try{await fazer();if(ok)avisoRapido(ok)}
+      catch(e){aviso("");erro("Não consegui concluir: "+(e.message||e.name))}
+    };
+    menu.appendChild(b);
+  });
+  document.body.appendChild(menu);
+  menu.style.left=Math.max(8,Math.min(x,innerWidth-menu.offsetWidth-8))+"px";
+  menu.style.top=Math.max(8,Math.min(y,innerHeight-menu.offsetHeight-8))+"px";
+  menu.firstChild.focus();
+}
+document.addEventListener("pointerdown",e=>{if(!e.target.closest("#menuFoto"))fecharMenuFoto()});
+document.addEventListener("keydown",e=>{if(e.key==="Escape")fecharMenuFoto()});
+document.addEventListener("scroll",fecharMenuFoto,true);
+
 function desenharLista(){
   const l=$("list");l.innerHTML="";let aguardando=0;
   chats.forEach(c=>{
@@ -219,6 +277,7 @@ function abrir(id){
       if(m.tipo==="produto"&&okUrl(m.url)&&(!m.imagem||okUrl(m.imagem))){el.appendChild(cartao(m.titulo,m.url,m.imagem))}else if(m.imagem){
         const i=document.createElement("img");i.src=m.imagem;i.alt="Foto enviada";
         i.onclick=()=>ampliar(m.imagem);i.onload=()=>{box.scrollTop=box.scrollHeight};
+        i.oncontextmenu=e=>{e.preventDefault();abrirMenuFoto(e.clientX,e.clientY,i)};
         el.appendChild(i);
       }
       if(m.texto)el.appendChild(comLinks(m.texto));
