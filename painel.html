@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Painel de atendimento</title>
+<style>
+:root{--bg:#F6F2FA;--surf:#fff;--ink:#2A1F2D;--mute:#6D6174;--line:#E4DCEC;--berry:#6B2D5C;--butter:#FFE9A8;--theirs:#EFE8F5}
+@media(prefers-color-scheme:dark){:root{--bg:#1B1420;--surf:#261C2C;--ink:#F3ECF7;--mute:#B2A5BA;--line:#3A2D42;--berry:#E7A6D6;--theirs:#34273C}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,sans-serif;line-height:1.4}
+.wrap{max-width:1000px;margin:0 auto;padding:16px}
+h1{font-size:1.4rem;margin:0 0 12px}
+#login{max-width:340px;display:flex;flex-direction:column;gap:8px}
+input{border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:10px;padding:10px 12px;font:inherit;min-width:0}
+button{border:0;background:var(--berry);color:#fff;border-radius:10px;padding:10px 16px;font:inherit;font-weight:600;cursor:pointer}
+@media(prefers-color-scheme:dark){button{color:#2A1F2D}}
+button:focus-visible,input:focus-visible{outline:3px solid var(--butter);outline-offset:2px}
+#erro{color:#B3261E;margin:8px 0}
+#desk{display:none;background:var(--surf);border:2px solid var(--line);border-radius:18px;overflow:hidden}
+.top{padding:12px 16px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:8px;align-items:center}
+.top span{color:var(--mute);font-size:.85rem}
+.top button{background:none;color:var(--mute);border:1px solid var(--line);padding:4px 10px;font-weight:400}
+.cols{display:grid;grid-template-columns:230px 1fr;min-height:460px}
+@media(max-width:600px){.cols{grid-template-columns:1fr}}
+#list{border-right:1px solid var(--line);overflow:auto;max-height:560px}
+@media(max-width:600px){#list{border-right:0;border-bottom:1px solid var(--line);max-height:200px}}
+#list button{display:flex;width:100%;justify-content:space-between;align-items:center;gap:6px;text-align:left;border-radius:0;background:none;color:var(--ink);font-weight:400;border-bottom:1px solid var(--line);padding:12px 14px}
+#list button[aria-current="true"]{background:var(--theirs)}
+#list small{display:block;color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:140px}
+.badge{background:var(--berry);color:#fff;border-radius:999px;min-width:22px;text-align:center;font-size:.75rem;padding:1px 6px}
+@media(prefers-color-scheme:dark){.badge{color:#2A1F2D}}
+.conv{display:flex;flex-direction:column;padding:12px;min-height:320px}
+#msgs{flex:1;overflow:auto;display:flex;flex-direction:column;gap:6px;max-height:460px}
+.m{max-width:80%;padding:8px 11px;border-radius:16px;word-wrap:break-word;white-space:pre-wrap}
+.m small{display:block;opacity:.65;font-size:.7rem;margin-top:2px}
+.me{align-self:flex-end;background:var(--berry);color:#fff;border-bottom-right-radius:4px}
+@media(prefers-color-scheme:dark){.me{color:#2A1F2D}}
+.other{align-self:flex-start;background:var(--theirs);border-bottom-left-radius:4px}
+.empty{color:var(--mute);margin:auto;text-align:center}
+#f{display:flex;gap:6px;margin-top:8px}
+#f input{flex:1}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>Painel de atendimento</h1>
+<form id="login"><input id="em" type="email" placeholder="Seu e-mail" autocomplete="username"><input id="pw" type="password" placeholder="Senha" autocomplete="current-password"><button>Entrar</button></form>
+<div id="erro"></div>
+<div id="desk">
+<div class="top"><b>Conversas</b><span id="count"></span><button id="sair" type="button">Sair</button></div>
+<div class="cols">
+<div id="list"></div>
+<div class="conv"><div id="msgs" aria-live="polite"><p class="empty">Escolha uma conversa.</p></div>
+<form id="f"><input id="txt" placeholder="Responder" autocomplete="off" aria-label="Sua resposta"><button>Responder</button></form></div>
+</div>
+</div>
+</div>
+<script type="module">
+import {initializeApp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import {getAuth,signInWithEmailAndPassword,signOut,onAuthStateChanged} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import {getFirestore,doc,setDoc,addDoc,collection,query,orderBy,onSnapshot,serverTimestamp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import {firebaseConfig} from "./firebase-config.js";
+
+const $=i=>document.getElementById(i);
+const app=initializeApp(firebaseConfig),auth=getAuth(app),db=getFirestore(app);
+let cur=null,offList=null,offMsgs=null,chats=[];
+
+function erro(t){$("erro").textContent=t}
+function hora(ts){var d=ts&&ts.toDate?ts.toDate():new Date();return d.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})}
+
+function desenharLista(){
+  const l=$("list");l.innerHTML="";let aguardando=0;
+  chats.forEach(c=>{
+    if(c.naoLidas)aguardando++;
+    const b=document.createElement("button");b.setAttribute("aria-current",c.id===cur);
+    const w=document.createElement("div");w.innerHTML="<b></b><small></small>";
+    w.firstChild.textContent=c.nome||"Cliente";w.lastChild.textContent=c.ultima||"";
+    b.appendChild(w);
+    if(c.naoLidas&&c.id!==cur){const s=document.createElement("span");s.className="badge";s.textContent=c.naoLidas;b.appendChild(s)}
+    b.onclick=()=>abrir(c.id);
+    l.appendChild(b);
+  });
+  if(!chats.length)l.innerHTML='<p class="empty" style="padding:16px">Nenhuma conversa ainda.</p>';
+  $("count").textContent=aguardando?aguardando+" aguardando resposta":"Tudo respondido";
+  document.title=aguardando?"("+aguardando+") Painel de atendimento":"Painel de atendimento";
+}
+
+function abrir(id){
+  cur=id;
+  if(offMsgs)offMsgs();
+  setDoc(doc(db,"chats",id),{naoLidas:0},{merge:true});
+  const q=query(collection(db,"chats",id,"messages"),orderBy("criado"));
+  offMsgs=onSnapshot(q,snap=>{
+    const box=$("msgs");box.innerHTML="";
+    snap.forEach(d=>{
+      const m=d.data(),el=document.createElement("div");
+      el.className="m "+(m.de==="loja"?"me":"other");
+      el.textContent=m.texto;
+      const s=document.createElement("small");s.textContent=hora(m.criado);el.appendChild(s);
+      box.appendChild(el);
+    });
+    box.scrollTop=box.scrollHeight;
+    // se chegou mensagem nova com a conversa aberta, zera o contador
+    const ult=chats.find(c=>c.id===id);if(ult&&ult.naoLidas)setDoc(doc(db,"chats",id),{naoLidas:0},{merge:true});
+  });
+  desenharLista();
+}
+
+function iniciar(){
+  $("login").style.display="none";$("desk").style.display="block";erro("");
+  const q=query(collection(db,"chats"),orderBy("atualizado","desc"));
+  offList=onSnapshot(q,snap=>{
+    chats=snap.docs.map(d=>({id:d.id,...d.data()}));
+    desenharLista();
+  },e=>erro("Não consegui ler as conversas: "+e.code+" (confira as regras do Firestore)"));
+}
+
+$("login").onsubmit=async e=>{
+  e.preventDefault();erro("");
+  try{await signInWithEmailAndPassword(auth,$("em").value.trim(),$("pw").value)}
+  catch(err){erro("Não entrou: "+err.code)}
+};
+$("sair").onclick=()=>signOut(auth);
+
+$("f").onsubmit=async e=>{
+  e.preventDefault();
+  const t=$("txt").value.trim();if(!t||!cur)return;
+  $("txt").value="";
+  try{
+    await addDoc(collection(db,"chats",cur,"messages"),{de:"loja",texto:t,criado:serverTimestamp()});
+    await setDoc(doc(db,"chats",cur),{ultima:"Você: "+t,atualizado:serverTimestamp(),naoLidas:0},{merge:true});
+  }catch(err){erro("Não consegui enviar: "+err.code)}
+};
+
+onAuthStateChanged(auth,u=>{
+  if(u&&u.email)iniciar();
+  else{
+    if(offList)offList();if(offMsgs)offMsgs();
+    $("desk").style.display="none";$("login").style.display="flex";
+  }
+});
+</script>
+</body>
+</html>

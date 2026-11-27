@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Kellen Cortadores – Conversa</title>
+<style>
+:root{--bg:#F6F2FA;--surf:#fff;--ink:#2A1F2D;--mute:#6D6174;--line:#E4DCEC;--berry:#6B2D5C;--butter:#FFE9A8;--theirs:#EFE8F5}
+@media(prefers-color-scheme:dark){:root{--bg:#1B1420;--surf:#261C2C;--ink:#F3ECF7;--mute:#B2A5BA;--line:#3A2D42;--berry:#E7A6D6;--theirs:#34273C}}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,sans-serif;line-height:1.4}
+.app{max-width:480px;height:100%;margin:0 auto;background:var(--surf);display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+header{background:var(--berry);color:#fff;padding:14px 16px;display:flex;gap:10px;align-items:center}
+@media(prefers-color-scheme:dark){header{color:#2A1F2D}}
+.logo{width:34px;height:34px;border-radius:50%;background:var(--butter);color:#6B2D5C;display:grid;place-items:center;font-weight:800}
+header b{display:block;line-height:1.1}header small{opacity:.85}
+#msgs{flex:1;overflow:auto;display:flex;flex-direction:column;gap:6px;padding:12px}
+.m{max-width:80%;padding:8px 11px;border-radius:16px;word-wrap:break-word;white-space:pre-wrap}
+.m small{display:block;opacity:.65;font-size:.7rem;margin-top:2px}
+.me{align-self:flex-end;background:var(--berry);color:#fff;border-bottom-right-radius:4px}
+@media(prefers-color-scheme:dark){.me{color:#2A1F2D}}
+.other{align-self:flex-start;background:var(--theirs);border-bottom-left-radius:4px}
+form{display:flex;gap:6px;padding:10px;border-top:1px solid var(--line)}
+input{flex:1;min-width:0;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:999px;padding:11px 14px;font:inherit;font-size:16px}
+button{border:0;background:var(--berry);color:#fff;border-radius:999px;padding:0 18px;font:inherit;font-weight:600}
+@media(prefers-color-scheme:dark){button{color:#2A1F2D}}
+button:focus-visible,input:focus-visible{outline:3px solid var(--butter);outline-offset:2px}
+#nome{padding:24px 16px;display:none;flex-direction:column;gap:10px}
+#nome p{margin:0;font-weight:600}
+#nome button{padding:11px 18px}
+#erro{color:#B3261E;padding:12px;display:none}
+</style>
+</head>
+<body>
+<div class="app">
+<header><div class="logo">K</div><div><b>Kellen Cortadores</b><small>Responde em poucos minutos</small></div></header>
+<div id="erro"></div>
+<div id="nome"><p>Como você se chama?</p><input id="nomeIn" placeholder="Seu nome" autocomplete="given-name"><button id="nomeOk" type="button">Começar conversa</button></div>
+<div id="msgs" aria-live="polite"></div>
+<form id="f"><input id="txt" placeholder="Escreva sua mensagem" autocomplete="off" aria-label="Mensagem"><button>Enviar</button></form>
+</div>
+<script type="module">
+import {initializeApp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import {getAuth,signInAnonymously,onAuthStateChanged} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import {getFirestore,doc,setDoc,addDoc,collection,query,orderBy,onSnapshot,serverTimestamp,increment} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import {firebaseConfig} from "./firebase-config.js";
+
+const $=i=>document.getElementById(i);
+const app=initializeApp(firebaseConfig),auth=getAuth(app),db=getFirestore(app);
+let uid=null,nome="";
+try{nome=localStorage.getItem("nome")||""}catch(e){}
+
+function erro(t){$("erro").style.display="block";$("erro").textContent=t}
+function hora(ts){var d=ts&&ts.toDate?ts.toDate():new Date();return d.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})}
+
+function escutar(){
+  const q=query(collection(db,"chats",uid,"messages"),orderBy("criado"));
+  onSnapshot(q,snap=>{
+    const box=$("msgs");box.innerHTML="";
+    snap.forEach(d=>{
+      const m=d.data(),el=document.createElement("div");
+      el.className="m "+(m.de==="cliente"?"me":"other");
+      el.textContent=m.texto;
+      const s=document.createElement("small");s.textContent=hora(m.criado);el.appendChild(s);
+      box.appendChild(el);
+    });
+    box.scrollTop=box.scrollHeight;
+  },e=>erro("Não consegui carregar a conversa: "+e.code));
+}
+
+function iniciar(){
+  $("nome").style.display="none";$("f").style.display="flex";$("msgs").style.display="flex";
+  escutar();
+}
+
+$("nomeOk").onclick=()=>{
+  const v=$("nomeIn").value.trim();if(!v)return;
+  nome=v;try{localStorage.setItem("nome",v)}catch(e){}
+  iniciar();
+};
+
+$("f").onsubmit=async e=>{
+  e.preventDefault();
+  const t=$("txt").value.trim();if(!t||!uid)return;
+  $("txt").value="";
+  try{
+    await addDoc(collection(db,"chats",uid,"messages"),{de:"cliente",texto:t,criado:serverTimestamp()});
+    await setDoc(doc(db,"chats",uid),{nome:nome||"Cliente",ultima:t,atualizado:serverTimestamp(),naoLidas:increment(1)},{merge:true});
+  }catch(err){erro("Não consegui enviar: "+err.code)}
+};
+
+onAuthStateChanged(auth,u=>{
+  if(!u)return;
+  uid=u.uid;
+  if(nome)iniciar();
+  else{$("nome").style.display="flex";$("f").style.display="none";$("msgs").style.display="none"}
+});
+signInAnonymously(auth).catch(e=>erro("Falha ao entrar: "+e.code));
+</script>
+</body>
+</html>
