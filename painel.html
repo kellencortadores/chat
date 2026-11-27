@@ -41,7 +41,11 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--butter);outline
 .other{align-self:flex-start;background:var(--theirs);border-bottom-left-radius:4px}
 .empty{color:var(--mute);margin:auto;text-align:center}
 #f{display:flex;gap:6px;margin-top:8px}
-#f input{flex:1}
+#f input[type=text],#f input:not([type]){flex:1}
+.clip{display:grid;place-items:center;flex:none;width:44px;border:1px solid var(--line);border-radius:10px;color:var(--berry);cursor:pointer}
+.clip:focus-within{outline:3px solid var(--butter);outline-offset:2px}
+.sr{position:absolute;width:1px;height:1px;padding:0;border:0;opacity:0;overflow:hidden}
+#aviso{color:var(--mute);font-size:.85rem;margin-top:6px;display:none}
 #zoom{position:fixed;inset:0;background:rgba(0,0,0,.88);display:none;align-items:center;justify-content:center;z-index:9;padding:16px}
 #zoom.on{display:flex}
 #zoom img{max-width:100%;max-height:100%;border-radius:8px}
@@ -57,7 +61,8 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--butter);outline
 <div class="cols">
 <div id="list"></div>
 <div class="conv"><div id="titulo" class="titulo">Nenhuma conversa aberta</div><div id="msgs" aria-live="polite"><p class="empty">Escolha uma conversa.</p></div>
-<form id="f"><input id="txt" placeholder="Responder" autocomplete="off" aria-label="Sua resposta"><button>Responder</button></form></div>
+<div id="aviso"></div>
+<form id="f"><label class="clip" aria-label="Enviar foto"><input id="foto" class="sr" type="file" accept="image/*"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg></label><input id="txt" placeholder="Responder" autocomplete="off" aria-label="Sua resposta"><button>Responder</button></form></div>
 </div>
 </div>
 </div>
@@ -136,6 +141,47 @@ $("login").onsubmit=async e=>{
   catch(err){erro("Não entrou: "+err.code)}
 };
 $("sair").onclick=()=>signOut(auth);
+
+function aviso(t){$("aviso").style.display=t?"block":"none";$("aviso").textContent=t||""}
+
+// reduz a foto até caber com folga no limite de 1 MB por documento do Firestore
+function reduzir(file){
+  return new Promise((ok,no)=>{
+    const url=URL.createObjectURL(file),img=new Image();
+    img.onload=()=>{
+      URL.revokeObjectURL(url);
+      for(const [lado,q] of [[1000,.7],[800,.6],[600,.5],[400,.5]]){
+        const r=Math.min(1,lado/Math.max(img.width,img.height));
+        const c=document.createElement("canvas");
+        c.width=Math.max(1,Math.round(img.width*r));c.height=Math.max(1,Math.round(img.height*r));
+        const x=c.getContext("2d");x.fillStyle="#fff";x.fillRect(0,0,c.width,c.height);
+        x.drawImage(img,0,0,c.width,c.height);
+        const d=c.toDataURL("image/jpeg",q);
+        if(d.length<900000)return ok(d);
+      }
+      no(new Error("imagem grande demais"));
+    };
+    img.onerror=()=>no(new Error("formato de imagem não aceito"));
+    img.src=url;
+  });
+}
+
+$("foto").onchange=async()=>{
+  const file=$("foto").files[0];$("foto").value="";
+  if(!file)return;
+  if(!cur){erro("Escolha uma conversa na lista antes de enviar a foto.");return}
+  const legenda=$("txt").value.trim();
+  erro("");aviso("Enviando foto…");
+  try{
+    const img=await reduzir(file);
+    const b=writeBatch(db);
+    b.set(doc(collection(db,"chats",cur,"messages")),{de:"loja",texto:legenda,imagem:img,criado:serverTimestamp()});
+    b.set(doc(db,"chats",cur),{ultima:"Você: 📷 "+(legenda||"Foto"),atualizado:serverTimestamp(),naoLidas:0},{merge:true});
+    await b.commit();
+    $("txt").value="";
+  }catch(err){erro("Não consegui enviar a foto: "+(err.code||err.message))}
+  aviso("");
+};
 
 $("f").onsubmit=async e=>{
   e.preventDefault();
