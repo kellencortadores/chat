@@ -45,6 +45,16 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--butter);outline
 #zoom{position:fixed;inset:0;background:rgba(0,0,0,.88);display:none;align-items:center;justify-content:center;z-index:9;padding:16px}
 #zoom.on{display:flex}
 #zoom img{max-width:100%;max-height:100%;border-radius:8px}
+.pc{display:block;text-decoration:none;color:var(--ink);background:var(--surf);border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-bottom:4px}
+.pc img{display:block;width:220px;max-width:100%;max-height:220px;object-fit:cover;margin:0;border-radius:0;cursor:pointer}
+.pc b{display:block;padding:6px 10px 0}
+.pc span{display:block;padding:0 10px 8px;font-size:.8rem;color:var(--mute)}
+#atalhos{display:flex;flex-wrap:wrap;gap:6px;padding:6px 10px 0}
+#atalhos button{padding:6px 12px;font-size:.85rem;background:none;color:var(--berry);border:1px solid var(--line)}
+#sug .pc{display:grid;grid-template-columns:56px 1fr;column-gap:10px;align-items:center;padding:6px;margin:6px 10px 0}
+#sug .pc img{grid-row:1/3;width:56px;height:56px;max-height:none;border-radius:8px}
+#sug .pc b,#sug .pc span{padding:0}
+#atalhos:empty,#sug:empty{display:none}
 </style>
 </head>
 <body>
@@ -54,6 +64,7 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--butter);outline
 <div id="nome"><p>Como você se chama?</p><input id="nomeIn" placeholder="Seu nome" autocomplete="given-name"><button id="nomeOk" type="button">Começar conversa</button></div>
 <div id="msgs" aria-live="polite"></div>
 <div id="aviso"></div>
+<div id="atalhos"></div><div id="sug"></div>
 <form id="f">
 <label class="clip" aria-label="Enviar foto"><input id="foto" class="sr" type="file" accept="image/*"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg></label>
 <input id="txt" placeholder="Escreva sua mensagem" autocomplete="off" aria-label="Mensagem"><button>Enviar</button>
@@ -65,6 +76,7 @@ import {initializeApp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase
 import {getAuth,signInAnonymously,onAuthStateChanged} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {getFirestore,doc,collection,query,orderBy,onSnapshot,serverTimestamp,increment,writeBatch} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import {firebaseConfig} from "./firebase-config.js";
+import {CATALOGO_URL,ATALHOS} from "./loja-config.js";
 
 const $=i=>document.getElementById(i);
 const app=initializeApp(firebaseConfig),auth=getAuth(app),db=getFirestore(app);
@@ -142,7 +154,7 @@ function escutar(){
     snap.forEach(d=>{
       const m=d.data(),el=document.createElement("div");
       el.className="m "+(m.de==="cliente"?"me":"other");
-      if(m.imagem){
+      if(m.tipo==="produto"&&m.de==="loja"&&okUrl(m.url)&&okUrl(m.imagem)){el.appendChild(cartao(m.titulo,m.url,m.imagem))}else if(m.imagem){
         const i=document.createElement("img");i.src=m.imagem;i.alt="Foto enviada";
         i.onclick=()=>ampliar(m.imagem);i.onload=()=>{box.scrollTop=box.scrollHeight};
         el.appendChild(i);
@@ -169,7 +181,7 @@ $("nomeOk").onclick=()=>{
 $("f").onsubmit=async e=>{
   e.preventDefault();
   const t=$("txt").value.trim();if(!t||!uid)return;
-  $("txt").value="";erro("");
+  $("txt").value="";sugerir();erro("");
   try{await enviar({texto:t},t)}
   catch(err){erro("Não consegui enviar: "+(err.code||err.message))}
 };
@@ -186,6 +198,38 @@ $("foto").onchange=async()=>{
   }catch(err){erro("Não consegui enviar a foto: "+(err.code||err.message))}
   aviso("");
 };
+
+
+const okUrl=s=>typeof s==="string"&&s.startsWith(CATALOGO_URL);
+const sem=s=>(s||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+function cartao(t,u,i,sub){
+  const a=document.createElement("a");a.className="pc";a.href=u;a.target="_blank";a.rel="noopener";
+  if(i){const im=document.createElement("img");im.src=i;im.alt="";im.loading="lazy";a.appendChild(im)}
+  const b=document.createElement("b");b.textContent=t||"Produto";a.appendChild(b);
+  const s=document.createElement("span");s.textContent=sub||"Toque para ver os modelos";a.appendChild(s);
+  return a;
+}
+// catálogo: produtos.json gerado pelo Gerenciador_de_Catálogo.py
+let produtos=[];
+fetch(CATALOGO_URL+"produtos.json",{cache:"no-cache"}).then(r=>r.json()).then(j=>{
+  produtos=(j.produtos||[]).map(p=>({...p,_w:sem([p.titulo,p.tema,...(p.palavras||[])].join(" ")).split(/[^a-z0-9]+/).filter(Boolean)}));
+}).catch(()=>{});
+
+ATALHOS.forEach(([nome,alvo])=>{
+  const b=document.createElement("button");b.type="button";b.textContent=nome;
+  b.onclick=()=>{if(/^https?:/.test(alvo))window.open(alvo,"_blank","noopener");else{$("txt").value=alvo;$("txt").focus()}};
+  $("atalhos").appendChild(b);
+});
+const IGNORAR=new Set(["para","pode","tem","voce","voces","quero","queria","preciso","gostaria","tenho","bom","boa","dia","tarde","noite","cortador","cortadore","biscoito","pedido","orcamento","valor","preco","quanto","fazer","esse","essa","isso"]);
+// enquanto a cliente digita, mostra o produto do catálogo que combina
+function sugerir(){
+  const box=$("sug");box.textContent="";
+  const ws=sem($("txt").value).split(/[^a-z0-9]+/).map(w=>w.replace(/s$/,"")).filter(w=>w.length>=4&&!IGNORAR.has(w));
+  if(!ws.length)return;
+  produtos.filter(p=>ws.some(w=>p._w.some(k=>w.length<5?k===w:k.startsWith(w)))).slice(0,2)
+    .forEach(p=>box.appendChild(cartao(p.titulo,CATALOGO_URL+p.url,p.imagem&&CATALOGO_URL+p.imagem,"Temos esse tema! Toque para ver")));
+}
+$("txt").addEventListener("input",sugerir);
 
 onAuthStateChanged(auth,u=>{
   if(!u)return;

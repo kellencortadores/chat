@@ -58,6 +58,17 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--butter);outline
 #zoom{position:fixed;inset:0;background:rgba(0,0,0,.88);display:none;align-items:center;justify-content:center;z-index:9;padding:16px}
 #zoom.on{display:flex}
 #zoom img{max-width:100%;max-height:100%;border-radius:8px}
+.pc{display:block;text-decoration:none;color:var(--ink);background:var(--surf);border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-bottom:4px}
+.pc img{display:block;width:220px;max-width:100%;max-height:220px;object-fit:cover;margin:0;border-radius:0;cursor:pointer}
+.pc b{display:block;padding:6px 10px 0}
+.pc span{display:block;padding:0 10px 8px;font-size:.8rem;color:var(--mute)}
+#rap{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+#rap button{background:none;color:var(--berry);border:1px solid var(--line);padding:4px 10px;font-weight:500;font-size:.85rem}
+#busca{width:100%;margin-top:8px}
+#res{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;color:var(--mute);font-size:.85rem}
+#res button{display:flex;align-items:center;gap:6px;background:var(--theirs);color:var(--ink);font-weight:500;padding:4px 10px 4px 4px;font-size:.85rem}
+#res img{width:36px;height:36px;object-fit:cover;border-radius:6px}
+#sit{display:none;font:inherit;font-size:.8rem;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:8px;padding:3px 6px}
 </style>
 </head>
 <body>
@@ -69,7 +80,8 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--butter);outline
 <div class="top"><b>Conversas</b><span id="count"></span><button id="som" type="button" aria-pressed="true">🔔 Som ligado</button><button id="sair" type="button">Sair</button></div>
 <div class="cols">
 <div id="list"></div>
-<div class="conv"><div class="titulo"><span id="titulo">Nenhuma conversa aberta</span><button id="apagar" type="button">🗑 Apagar</button></div><div id="msgs" aria-live="polite"><p class="empty">Escolha uma conversa.</p></div>
+<div class="conv"><div class="titulo"><span id="titulo">Nenhuma conversa aberta</span><select id="sit" aria-label="Situação da conversa"></select><button id="apagar" type="button">🗑 Apagar</button></div><div id="msgs" aria-live="polite"><p class="empty">Escolha uma conversa.</p></div>
+<div id="rap"></div><input id="busca" placeholder="🔎 Buscar produto do catálogo para enviar (ex.: astro)" autocomplete="off" aria-label="Buscar produto"><div id="res"></div>
 <div id="aviso"></div>
 <form id="f"><label class="clip" aria-label="Enviar foto"><input id="foto" class="sr" type="file" accept="image/*"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg></label><input id="txt" placeholder="Responder" autocomplete="off" aria-label="Sua resposta"><button>Responder</button></form></div>
 </div>
@@ -81,6 +93,7 @@ import {initializeApp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase
 import {getAuth,signInWithEmailAndPassword,signOut,onAuthStateChanged} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {getFirestore,doc,setDoc,getDocs,deleteDoc,collection,query,orderBy,limit,onSnapshot,serverTimestamp,writeBatch} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import {firebaseConfig} from "./firebase-config.js";
+import {CATALOGO_URL,RESPOSTAS,SITUACOES} from "./loja-config.js";
 
 const $=i=>document.getElementById(i);
 const app=initializeApp(firebaseConfig),auth=getAuth(app),db=getFirestore(app);
@@ -127,20 +140,21 @@ function desenharLista(){
     if(c.naoLidas)aguardando++;
     const b=document.createElement("button");b.setAttribute("aria-current",c.id===cur);
     const w=document.createElement("div");w.innerHTML="<b></b><small></small>";
-    w.firstChild.textContent=c.nome||"Cliente";w.lastChild.textContent=c.ultima||"";
+    w.firstChild.textContent=c.nome||"Cliente";w.lastChild.textContent=(c.situacao?"["+c.situacao+"] ":"")+(c.ultima||"");
     b.appendChild(w);
     if(c.naoLidas&&c.id!==cur){const s=document.createElement("span");s.className="badge";s.textContent=c.naoLidas;b.appendChild(s)}
     b.onclick=()=>abrir(c.id);
     l.appendChild(b);
   });
   if(!chats.length)l.innerHTML='<p class="empty" style="padding:16px">Nenhuma conversa ainda.</p>';
+  if(cur){const cc=chats.find(x=>x.id===cur);if(cc)$("sit").value=cc.situacao||""}
   $("count").textContent=aguardando?aguardando+" aguardando resposta":"Tudo respondido";
   document.title=aguardando?"("+aguardando+") Painel de atendimento":"Painel de atendimento";
 }
 
 function abrir(id){
   cur=id;
-  $("apagar").style.display="inline-block";
+  $("apagar").style.display="inline-block";$("sit").style.display="inline-block";
   if(offMsgs)offMsgs();
   const c0=chats.find(c=>c.id===id);$("titulo").textContent=c0?(c0.nome||"Cliente"):"";
   setDoc(doc(db,"chats",id),{naoLidas:0},{merge:true});
@@ -154,7 +168,7 @@ function abrir(id){
     snap.forEach(d=>{
       const m=d.data(),el=document.createElement("div");
       el.className="m "+(m.de==="loja"?"me":"other");
-      if(m.imagem){
+      if(m.tipo==="produto"&&okUrl(m.url)&&(!m.imagem||okUrl(m.imagem))){el.appendChild(cartao(m.titulo,m.url,m.imagem))}else if(m.imagem){
         const i=document.createElement("img");i.src=m.imagem;i.alt="Foto enviada";
         i.onclick=()=>ampliar(m.imagem);i.onload=()=>{box.scrollTop=box.scrollHeight};
         el.appendChild(i);
@@ -253,7 +267,7 @@ $("apagar").onclick=async()=>{
   try{
     if(offMsgs){offMsgs();offMsgs=null}
     cur=null;
-    $("titulo").textContent="Nenhuma conversa aberta";$("apagar").style.display="none";
+    $("titulo").textContent="Nenhuma conversa aberta";$("apagar").style.display="none";$("sit").style.display="none";
     $("msgs").innerHTML='<p class="empty">Escolha uma conversa.</p>';
     const snap=await getDocs(collection(db,"chats",id,"messages"));
     let b=writeBatch(db),n=0;
@@ -261,6 +275,53 @@ $("apagar").onclick=async()=>{
     await b.commit();
     await deleteDoc(doc(db,"chats",id));
   }catch(err){erro("Não consegui apagar: "+(err.code||err.message))}
+};
+
+
+const okUrl=s=>typeof s==="string"&&s.startsWith(CATALOGO_URL);
+const sem=s=>(s||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+function cartao(t,u,i,sub){
+  const a=document.createElement("a");a.className="pc";a.href=u;a.target="_blank";a.rel="noopener";
+  if(i){const im=document.createElement("img");im.src=i;im.alt="";im.loading="lazy";a.appendChild(im)}
+  const b=document.createElement("b");b.textContent=t||"Produto";a.appendChild(b);
+  const s=document.createElement("span");s.textContent=sub||"Toque para ver os modelos";a.appendChild(s);
+  return a;
+}
+// catálogo: produtos.json gerado pelo Gerenciador_de_Catálogo.py
+let produtos=[];
+fetch(CATALOGO_URL+"produtos.json",{cache:"no-cache"}).then(r=>r.json()).then(j=>{
+  produtos=(j.produtos||[]).map(p=>({...p,_w:sem([p.titulo,p.tema,...(p.palavras||[])].join(" ")).split(/[^a-z0-9]+/).filter(Boolean)}));
+}).catch(()=>{});
+
+// situação da conversa
+const sit=$("sit");
+[["","Sem situação"],...SITUACOES.map(s=>[s,s])].forEach(([v,t])=>{const o=document.createElement("option");o.value=v;o.textContent=t;sit.appendChild(o)});
+sit.onchange=()=>{if(cur)setDoc(doc(db,"chats",cur),{situacao:sit.value},{merge:true}).catch(e=>erro("Não consegui salvar a situação: "+e.code))};
+// respostas rápidas (preenchem a caixa; você revisa e envia)
+RESPOSTAS.forEach(([nome,texto])=>{
+  const b=document.createElement("button");b.type="button";b.textContent=nome;b.title=texto;
+  b.onclick=()=>{$("txt").value=texto;$("txt").focus()};$("rap").appendChild(b);
+});
+// buscar produto e enviar na conversa
+async function enviarProduto(p){
+  if(!cur){erro("Escolha uma conversa na lista antes de enviar o produto.");return}
+  erro("");
+  const b=writeBatch(db);
+  b.set(doc(collection(db,"chats",cur,"messages")),{de:"loja",tipo:"produto",titulo:p.titulo,url:CATALOGO_URL+p.url,imagem:p.imagem?CATALOGO_URL+p.imagem:"",texto:$("txt").value.trim(),criado:serverTimestamp()});
+  b.set(doc(db,"chats",cur),{ultima:"Você: 🛍 "+p.titulo,atualizado:serverTimestamp(),naoLidas:0},{merge:true});
+  try{await b.commit();$("txt").value="";$("busca").value="";$("res").textContent=""}catch(err){erro("Não consegui enviar: "+(err.code||err.message))}
+}
+$("busca").oninput=()=>{
+  const r=$("res");r.textContent="";
+  const ws=sem($("busca").value).split(/[^a-z0-9]+/).filter(Boolean);
+  if(!ws.length)return;
+  produtos.filter(p=>ws.every(w=>p._w.some(k=>k.startsWith(w)))).slice(0,8).forEach(p=>{
+    const b=document.createElement("button");b.type="button";
+    if(p.imagem){const im=document.createElement("img");im.src=CATALOGO_URL+p.imagem;im.alt="";b.appendChild(im)}
+    b.appendChild(document.createTextNode(p.titulo+" ("+p.tema+")"));
+    b.onclick=()=>enviarProduto(p);r.appendChild(b);
+  });
+  if(!r.children.length)r.textContent=produtos.length?"Nenhum produto encontrado.":"Catálogo ainda não carregou (gere o produtos.json).";
 };
 
 onAuthStateChanged(auth,u=>{
