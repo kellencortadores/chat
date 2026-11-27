@@ -109,10 +109,16 @@ function lerPedido(){
   nomeCatalogo=(p.get("nome")||"").trim().slice(0,60);
   history.replaceState(null,"",location.pathname+location.search);
 }
+// coloca o nome da cliente logo abaixo do título do pedido
+function comNome(t){
+  const l=t.split("\n").filter((x,i)=>i===0||!/^Cliente:/.test(x));
+  l.splice(1,0,"Cliente: "+nome.replace(/\s+/g," "));
+  return l.join("\n");
+}
 function mostrarPedido(){
   const ver=pedido&&uid&&$("nome").style.display!=="flex"&&nome;
   $("pedido").style.display=ver?"flex":"none";
-  $("pedidoTxt").textContent=pedido;
+  $("pedidoTxt").textContent=comNome(pedido);
 }
 
 // ---- som de aviso quando a loja responde (gerado pelo navegador, sem arquivo) ----
@@ -345,7 +351,7 @@ $("pedidoOk").onclick=async()=>{
   const t=pedido,tema=(t.match(/^Tema: (.+)$/m)||[])[1];
   $("pedidoOk").disabled=true;erro("");
   try{
-    await enviar({texto:t},"🛒 Pedido"+(tema?": "+tema:""));
+    await enviar({texto:comNome(t)},"🛒 Pedido"+(tema?": "+tema:""));
     if(pedido===t)guardarPedido("");
   }catch(err){erro("Não consegui enviar o pedido: "+(err.code||err.message))}
   $("pedidoOk").disabled=false;mostrarPedido();

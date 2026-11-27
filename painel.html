@@ -48,6 +48,7 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--butter);outline
 .me{align-self:flex-end;background:var(--berry);color:#fff;border-bottom-right-radius:4px}
 @media(prefers-color-scheme:dark){.me{color:#2A1F2D}}
 .other{align-self:flex-start;background:var(--theirs);border-bottom-left-radius:4px}
+.m button.copiar{display:block;margin-top:8px;background:var(--surf);color:var(--ink);border:1px solid var(--line);padding:6px 12px;font-size:.85rem}
 .empty{color:var(--mute);margin:auto;text-align:center}
 #f{display:flex;gap:6px;margin-top:8px}
 #f input[type=text],#f input:not([type]){flex:1}
@@ -167,6 +168,19 @@ function hora(ts){var d=ts&&ts.toDate?ts.toDate():new Date();return d.toLocaleTi
 function ampliar(src){$("zoom").firstElementChild.src=src;$("zoom").classList.add("on")}
 $("zoom").onclick=()=>$("zoom").classList.remove("on");
 
+// copia o pedido pronto para colar no programa Cria Pedido
+function botaoCopiar(texto,id){
+  const b=document.createElement("button");b.type="button";b.className="copiar";b.textContent="📋 Copiar pedido";
+  b.onclick=async()=>{
+    let t=texto;
+    if(!/^Cliente:/m.test(t)){const c=chats.find(x=>x.id===id),l=t.split("\n");l.splice(1,0,"Cliente: "+((c&&c.nome)||"Cliente"));t=l.join("\n")}
+    try{await navigator.clipboard.writeText(t);b.textContent="✔ Copiado"}
+    catch(e){erro("Não consegui copiar. Selecione o texto e copie.")}
+    setTimeout(()=>{b.textContent="📋 Copiar pedido"},2000);
+  };
+  return b;
+}
+
 function desenharLista(){
   const l=$("list");l.innerHTML="";let aguardando=0;
   chats.forEach(c=>{
@@ -208,6 +222,7 @@ function abrir(id){
         el.appendChild(i);
       }
       if(m.texto)el.appendChild(comLinks(m.texto));
+      if(m.de==="cliente"&&m.texto&&m.texto.startsWith("🛒 Pedido do catálogo"))el.appendChild(botaoCopiar(m.texto,id));
       const s=document.createElement("small");s.textContent=hora(m.criado);el.appendChild(s);
       box.appendChild(el);
     });
