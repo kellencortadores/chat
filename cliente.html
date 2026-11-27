@@ -55,6 +55,11 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--butter);outline
 #sug .pc img{grid-row:1/3;width:56px;height:56px;max-height:none;border-radius:8px}
 #sug .pc b,#sug .pc span{padding:0}
 #atalhos:empty,#sug:empty{display:none}
+.dd{position:relative}
+.dd-menu{display:none;position:absolute;bottom:calc(100% + 6px);left:0;flex-direction:column;min-width:210px;background:var(--surf);border:1px solid var(--line);border-radius:12px;box-shadow:0 6px 20px rgba(0,0,0,.18);overflow:hidden;z-index:5}
+.dd-menu.on{display:flex}
+#atalhos .dd-menu button{background:none;border:0;border-bottom:1px solid var(--line);border-radius:0;text-align:left;padding:12px 14px;font-size:.95rem;font-weight:500;color:var(--ink)}
+#atalhos .dd-menu button:last-child{border-bottom:0}
 </style>
 </head>
 <body>
@@ -76,7 +81,8 @@ import {initializeApp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase
 import {getAuth,signInAnonymously,onAuthStateChanged} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {getFirestore,doc,collection,query,orderBy,onSnapshot,serverTimestamp,increment,writeBatch} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import {firebaseConfig} from "./firebase-config.js";
-import {CATALOGO_URL,ATALHOS} from "./loja-config.js";
+import * as LOJA from "./loja-config.js";
+const {CATALOGO_URL,ATALHOS}=LOJA,ORCAMENTO=LOJA.ORCAMENTO||[];
 
 const $=i=>document.getElementById(i);
 const app=initializeApp(firebaseConfig),auth=getAuth(app),db=getFirestore(app);
@@ -143,9 +149,23 @@ async function enviar(dados,resumo){
   await b.commit();
 }
 
-let ultimo=null;
+// **negrito** e *itálico* nas tabelas do orçamento (montado com DOM, sem innerHTML)
+function formatar(t){
+  const f=document.createDocumentFragment();
+  t.split(/(\*\*[^*]+\*\*|\*[^*\n]+\*)/).forEach(p=>{
+    if(!p)return;
+    let el=null;
+    if(p.length>4&&p.startsWith("**")&&p.endsWith("**")){el=document.createElement("strong");el.textContent=p.slice(2,-2)}
+    else if(p.length>2&&p.startsWith("*")&&p.endsWith("*")){el=document.createElement("em");el.textContent=p.slice(1,-1)}
+    f.appendChild(el||document.createTextNode(p));
+  });
+  return f;
+}
+let ultimo=null,rolarOrc=0,ultimoOrc=null;
+const PREFIXO="Orçamento: ";
 function desenhar(){
   if(!ultimo)return;
+  ultimoOrc=null;
   const box=$("msgs");box.innerHTML="";
   ultimo.forEach(d=>{
     const m=d.data(),el=document.createElement("div");
@@ -160,15 +180,24 @@ function desenhar(){
     box.appendChild(el);
     // resposta automática: só aparece para a cliente (não é gravada no Firebase)
     if(m.de==="cliente"&&m.texto){
-      const ach=achar(m.texto);
-      if(ach.length){
+      const op=m.texto.startsWith(PREFIXO)?ORCAMENTO.find(o=>o[0]===m.texto.slice(PREFIXO.length)):null;
+      if(op){
         const r=document.createElement("div");r.className="m other";
-        ach.forEach(p=>r.appendChild(cartao(p.titulo,CATALOGO_URL+p.url,p.imagem&&CATALOGO_URL+p.imagem,"Temos esse tema! Toque para ver")));
-        box.appendChild(r);
+        r.appendChild(formatar(op[1]));
+        box.appendChild(r);ultimoOrc=r;
+      }else{
+        const ach=achar(m.texto);
+        if(ach.length){
+          const r=document.createElement("div");r.className="m other";
+          ach.forEach(p=>r.appendChild(cartao(p.titulo,CATALOGO_URL+p.url,p.imagem&&CATALOGO_URL+p.imagem,"Temos esse tema! Toque para ver")));
+          box.appendChild(r);
+        }
       }
     }
   });
-  box.scrollTop=box.scrollHeight;
+  // ao escolher uma opção do orçamento, mostra a tabela desde o começo
+  if(Date.now()<rolarOrc&&ultimoOrc)ultimoOrc.scrollIntoView({block:"start"});
+  else box.scrollTop=box.scrollHeight;
 }
 function escutar(){
   const q=query(collection(db,"chats",uid,"messages"),orderBy("criado"));
@@ -235,6 +264,28 @@ ATALHOS.forEach(([nome,alvo])=>{
   b.onclick=()=>{if(/^https?:/.test(alvo))window.open(alvo,"_blank","noopener");else{$("txt").value=alvo;$("txt").focus()}};
   $("atalhos").appendChild(b);
 });
+if(ORCAMENTO.length){
+  const dd=document.createElement("div");dd.className="dd";
+  const bt=document.createElement("button");bt.type="button";bt.textContent="Orçamento ▾";
+  bt.setAttribute("aria-haspopup","true");bt.setAttribute("aria-expanded","false");
+  const menu=document.createElement("div");menu.className="dd-menu";menu.setAttribute("role","menu");
+  const fechar=()=>{menu.classList.remove("on");bt.setAttribute("aria-expanded","false")};
+  bt.onclick=e=>{e.stopPropagation();bt.setAttribute("aria-expanded",String(menu.classList.toggle("on")))};
+  ORCAMENTO.forEach(([nome])=>{
+    const o=document.createElement("button");o.type="button";o.textContent=nome;o.setAttribute("role","menuitem");
+    o.onclick=async()=>{
+      fechar();
+      if(!uid||$("msgs").style.display==="none")return; // ainda falta ela informar o nome
+      erro("");rolarOrc=Date.now()+4000;
+      try{await enviar({texto:PREFIXO+nome},PREFIXO+nome)}
+      catch(err){rolarOrc=0;erro("Não consegui enviar: "+(err.code||err.message))}
+    };
+    menu.appendChild(o);
+  });
+  dd.append(bt,menu);$("atalhos").appendChild(dd);
+  document.addEventListener("click",fechar);
+  document.addEventListener("keydown",e=>{if(e.key==="Escape")fechar()});
+}
 const IGNORAR=new Set(["para","pode","tem","voce","voces","quero","queria","preciso","gostaria","tenho","bom","boa","dia","tarde","noite","cortador","cortadore","biscoito","pedido","orcamento","valor","preco","quanto","fazer","esse","essa","isso","modelo","tema","quantidade","observacao"]);
 // enquanto a cliente digita, mostra o produto do catálogo que combina
 function achar(txt){
