@@ -55,6 +55,12 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--butter);outline
 #sug .pc img{grid-row:1/3;width:56px;height:56px;max-height:none;border-radius:8px}
 #sug .pc b,#sug .pc span{padding:0}
 #atalhos:empty,#sug:empty{display:none}
+#pedido{display:none;flex-direction:column;gap:8px;margin:8px 10px 0;padding:10px;border:2px solid var(--berry);border-radius:12px}
+#pedido div:first-of-type{white-space:pre-wrap;word-wrap:break-word;max-height:30vh;overflow:auto;font-size:.9rem}
+#pedido .acoes{display:flex;gap:8px}
+#pedido button{padding:10px 16px}
+#pedidoOk{flex:1}
+#pedido #pedidoNao{background:none;color:var(--berry);border:1px solid var(--line)}
 .dd{position:relative}
 .dd-menu{display:none;position:absolute;bottom:calc(100% + 6px);left:0;flex-direction:column;min-width:210px;background:var(--surf);border:1px solid var(--line);border-radius:12px;box-shadow:0 6px 20px rgba(0,0,0,.18);overflow:hidden;z-index:5}
 .dd-menu.on{display:flex}
@@ -70,6 +76,7 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--butter);outline
 <div id="nome"><p>Como você se chama?</p><input id="nomeIn" placeholder="Seu nome" autocomplete="given-name"><button id="nomeOk" type="button">Começar conversa</button></div>
 <div id="msgs" aria-live="polite"></div>
 <div id="aviso"></div>
+<div id="pedido" role="region" aria-label="Pedido do catálogo"><b>Confira seu pedido e toque em enviar</b><div id="pedidoTxt"></div><div class="acoes"><button id="pedidoOk" type="button">Enviar pedido</button><button id="pedidoNao" type="button">Cancelar</button></div></div>
 <div id="atalhos"></div><div id="sug"></div>
 <form id="f">
 <label class="clip" aria-label="Enviar foto"><input id="foto" class="sr" type="file" accept="image/*"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg></label>
@@ -89,6 +96,24 @@ const $=i=>document.getElementById(i);
 const app=initializeApp(firebaseConfig),auth=getAuth(app),db=getFirestore(app);
 let uid=null,nome="";
 try{nome=localStorage.getItem("nome")||""}catch(e){}
+
+// ---- pedido que vem do catálogo (endereço termina em #pedido=...) ----
+// Fica guardado até a cliente enviar ou cancelar.
+let pedido="",nomeCatalogo="";
+try{pedido=localStorage.getItem("pedidoPendente")||""}catch(e){}
+function guardarPedido(t){pedido=t;try{t?localStorage.setItem("pedidoPendente",t):localStorage.removeItem("pedidoPendente")}catch(e){}}
+function lerPedido(){
+  const p=new URLSearchParams(location.hash.slice(1)),t=(p.get("pedido")||"").trim();
+  if(!t)return;
+  guardarPedido(t.slice(0,5000));
+  nomeCatalogo=(p.get("nome")||"").trim().slice(0,60);
+  history.replaceState(null,"",location.pathname+location.search);
+}
+function mostrarPedido(){
+  const ver=pedido&&uid&&$("nome").style.display!=="flex"&&nome;
+  $("pedido").style.display=ver?"flex":"none";
+  $("pedidoTxt").textContent=pedido;
+}
 
 // ---- som de aviso quando a loja responde (gerado pelo navegador, sem arquivo) ----
 let ctx=null;
@@ -177,6 +202,7 @@ function formatar(t){
 }
 let ultimo=null,rolarOrc=0,ultimoOrc=null;
 const PREFIXO="Orçamento: ";
+const PEDIDO="🛒 Pedido do catálogo";
 function desenhar(){
   if(!ultimo)return;
   ultimoOrc=null;
@@ -193,7 +219,7 @@ function desenhar(){
     const s=document.createElement("small");s.textContent=hora(m.criado);el.appendChild(s);
     box.appendChild(el);
     // resposta automática: só aparece para a cliente (não é gravada no Firebase)
-    if(m.de==="cliente"&&m.texto){
+    if(m.de==="cliente"&&m.texto&&!m.texto.startsWith(PEDIDO)){
       const op=m.texto.startsWith(PREFIXO)?ORCAMENTO.find(o=>o[0]===m.texto.slice(PREFIXO.length)):null;
       if(op){
         const r=document.createElement("div");r.className="m other";
@@ -227,6 +253,7 @@ function escutar(){
 function iniciar(){
   $("nome").style.display="none";$("f").style.display="flex";$("msgs").style.display="flex";
   escutar();
+  mostrarPedido();
 }
 
 $("nomeOk").onclick=()=>{
@@ -313,11 +340,25 @@ function sugerir(){
 }
 $("txt").addEventListener("input",sugerir);
 
+$("pedidoOk").onclick=async()=>{
+  if(!pedido||!uid)return;
+  const t=pedido,tema=(t.match(/^Tema: (.+)$/m)||[])[1];
+  $("pedidoOk").disabled=true;erro("");
+  try{
+    await enviar({texto:t},"🛒 Pedido"+(tema?": "+tema:""));
+    if(pedido===t)guardarPedido("");
+  }catch(err){erro("Não consegui enviar o pedido: "+(err.code||err.message))}
+  $("pedidoOk").disabled=false;mostrarPedido();
+};
+$("pedidoNao").onclick=()=>{guardarPedido("");mostrarPedido()};
+window.addEventListener("hashchange",()=>{lerPedido();mostrarPedido()});
+lerPedido();
+
 onAuthStateChanged(auth,u=>{
   if(!u)return;
   uid=u.uid;
   if(nome)iniciar();
-  else{$("nome").style.display="flex";$("f").style.display="none";$("msgs").style.display="none"}
+  else{if(nomeCatalogo)$("nomeIn").value=nomeCatalogo;$("nome").style.display="flex";$("f").style.display="none";$("msgs").style.display="none"}
 });
 signInAnonymously(auth).catch(e=>erro("Falha ao entrar: "+e.code));
 if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});

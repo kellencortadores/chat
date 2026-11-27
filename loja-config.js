@@ -59,7 +59,7 @@ Antes de confirmar seu pedido, informaremos o prazo previsto para a produção.
 
 💬 **Pedidos e pagamento**
 
-Os pedidos são realizados exclusivamente pelo WhatsApp.
+Os pedidos são realizados aqui pelo chat.
 
 ✨ **Formato do cortador**
 
