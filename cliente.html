@@ -60,6 +60,7 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--butter);outline
 .dd-menu.on{display:flex}
 #atalhos .dd-menu button{background:none;border:0;border-bottom:1px solid var(--line);border-radius:0;text-align:left;padding:12px 14px;font-size:.95rem;font-weight:500;color:var(--ink)}
 #atalhos .dd-menu button:last-child{border-bottom:0}
+.m a:not(.pc){color:inherit;text-decoration:underline;word-break:break-all}
 </style>
 </head>
 <body>
@@ -116,6 +117,19 @@ document.addEventListener("keydown",preparar);
 
 function erro(t){$("erro").style.display=t?"block":"none";$("erro").textContent=t||""}
 function aviso(t){$("aviso").style.display=t?"block":"none";$("aviso").textContent=t||""}
+// transforma http(s)://... em link clicável (montado com DOM, sem innerHTML)
+function comLinks(t){
+  const f=document.createDocumentFragment();
+  t.split(/(https?:\/\/\S+)/g).forEach(p=>{
+    if(!p)return;
+    if(/^https?:\/\//.test(p)){
+      const fim=(p.match(/[.,;:!?)\]]+$/)||[""])[0],url=p.slice(0,p.length-fim.length);
+      const a=document.createElement("a");a.href=url;a.textContent=url;a.target="_blank";a.rel="noopener noreferrer";
+      f.appendChild(a);if(fim)f.appendChild(document.createTextNode(fim));
+    }else f.appendChild(document.createTextNode(p));
+  });
+  return f;
+}
 function hora(ts){var d=ts&&ts.toDate?ts.toDate():new Date();return d.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})}
 function ampliar(src){$("zoom").firstElementChild.src=src;$("zoom").classList.add("on")}
 $("zoom").onclick=()=>$("zoom").classList.remove("on");
@@ -175,7 +189,7 @@ function desenhar(){
       i.onclick=()=>ampliar(m.imagem);i.onload=()=>{box.scrollTop=box.scrollHeight};
       el.appendChild(i);
     }
-    if(m.texto)el.appendChild(document.createTextNode(m.texto));
+    if(m.texto)el.appendChild(comLinks(m.texto));
     const s=document.createElement("small");s.textContent=hora(m.criado);el.appendChild(s);
     box.appendChild(el);
     // resposta automática: só aparece para a cliente (não é gravada no Firebase)

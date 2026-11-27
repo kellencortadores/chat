@@ -69,6 +69,7 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--butter);outline
 #res button{display:flex;align-items:center;gap:6px;background:var(--theirs);color:var(--ink);font-weight:500;padding:4px 10px 4px 4px;font-size:.85rem}
 #res img{width:36px;height:36px;object-fit:cover;border-radius:6px}
 #sit{display:none;font:inherit;font-size:.8rem;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:8px;padding:3px 6px}
+.m a:not(.pc){color:inherit;text-decoration:underline;word-break:break-all}
 </style>
 </head>
 <body>
@@ -130,6 +131,19 @@ document.addEventListener("pointerdown",preparar);
 document.addEventListener("keydown",preparar);
 $("som").onclick=()=>{somOn=!somOn;try{localStorage.setItem("som",somOn?"on":"off")}catch(e){}mostrarSom();if(somOn)plim()};
 mostrarSom();
+// transforma http(s)://... em link clicável (montado com DOM, sem innerHTML)
+function comLinks(t){
+  const f=document.createDocumentFragment();
+  t.split(/(https?:\/\/\S+)/g).forEach(p=>{
+    if(!p)return;
+    if(/^https?:\/\//.test(p)){
+      const fim=(p.match(/[.,;:!?)\]]+$/)||[""])[0],url=p.slice(0,p.length-fim.length);
+      const a=document.createElement("a");a.href=url;a.textContent=url;a.target="_blank";a.rel="noopener noreferrer";
+      f.appendChild(a);if(fim)f.appendChild(document.createTextNode(fim));
+    }else f.appendChild(document.createTextNode(p));
+  });
+  return f;
+}
 function hora(ts){var d=ts&&ts.toDate?ts.toDate():new Date();return d.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})}
 function ampliar(src){$("zoom").firstElementChild.src=src;$("zoom").classList.add("on")}
 $("zoom").onclick=()=>$("zoom").classList.remove("on");
@@ -173,7 +187,7 @@ function abrir(id){
         i.onclick=()=>ampliar(m.imagem);i.onload=()=>{box.scrollTop=box.scrollHeight};
         el.appendChild(i);
       }
-      if(m.texto)el.appendChild(document.createTextNode(m.texto));
+      if(m.texto)el.appendChild(comLinks(m.texto));
       const s=document.createElement("small");s.textContent=hora(m.criado);el.appendChild(s);
       box.appendChild(el);
     });
