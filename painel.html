@@ -57,6 +57,14 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--butter);outline
 #f input[type=text],#f input:not([type]){flex:1}
 .clip{display:grid;place-items:center;flex:none;width:44px;border:1px solid var(--line);border-radius:10px;color:var(--berry);cursor:pointer}
 .clip:focus-within{outline:3px solid var(--butter);outline-offset:2px}
+.m audio{display:block;width:250px;max-width:100%;margin-bottom:4px}
+.m:has(audio){width:min(290px,88%);max-width:88%}
+button.mic{background:none;color:var(--berry);padding:0}
+#grav{display:none;flex-wrap:wrap;gap:6px;align-items:center;margin:8px 10px 0;padding:10px;border:2px solid var(--berry);border-radius:12px;font-size:.9rem}
+#grav.on{display:flex}
+#grav span,#grav audio{flex:1 1 100%;width:100%}
+#grav button{padding:8px 14px;border-radius:999px}
+#grav button.sec{background:none;color:var(--berry);border:1px solid var(--line)}
 .sr{position:absolute;width:1px;height:1px;padding:0;border:0;opacity:0;overflow:hidden}
 #aviso{color:var(--mute);font-size:.85rem;margin-top:6px;display:none}
 #zoom{position:fixed;inset:0;background:rgba(0,0,0,.88);display:none;align-items:center;justify-content:center;z-index:9;padding:16px}
@@ -107,7 +115,8 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--butter);outline
 <div id="lemb" hidden><input id="lembTexto" placeholder="O que preciso devolver a ela? (opcional)" maxlength="120" autocomplete="off" aria-label="Anotação do lembrete"><div class="ch" id="lembRap"></div><div class="lin"><input id="lembQuando" type="datetime-local" aria-label="Data e hora do lembrete"><button id="lembOk" type="button">Agendar</button><button id="lembDel" type="button">Remover</button></div></div><div id="msgs" aria-live="polite"><p class="empty">Escolha uma conversa.</p></div>
 <div id="rap"></div><input id="busca" placeholder="🔎 Buscar produto do catálogo para enviar (ex.: astro)" autocomplete="off" aria-label="Buscar produto"><div id="res"></div>
 <div id="aviso"></div>
-<form id="f"><label class="clip" aria-label="Enviar foto"><input id="foto" class="sr" type="file" accept="image/*"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg></label><input id="txt" placeholder="Responder" autocomplete="off" aria-label="Sua resposta"><button>Responder</button></form></div>
+<div id="grav" aria-live="polite"></div>
+<form id="f"><label class="clip" aria-label="Enviar foto"><input id="foto" class="sr" type="file" accept="image/*"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg></label><button class="clip mic" id="mic" type="button" aria-label="Gravar áudio" title="Gravar áudio"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10v1a7 7 0 0 0 14 0v-1M12 18v4"/></svg></button><input id="txt" placeholder="Responder" autocomplete="off" aria-label="Sua resposta"><button>Responder</button></form></div>
 </div>
 </div>
 </div>
@@ -259,6 +268,7 @@ function desenharLista(){
 }
 
 function abrir(id){
+  if(id!==cur)gravador.descartar();
   cur=id;
   $("apagar").style.display="inline-block";$("sit").style.display="inline-block";$("lembBtn").style.display="inline-block";$("lemb").hidden=true;$("lembBtn").setAttribute("aria-expanded","false");
   if(offMsgs)offMsgs();
@@ -280,6 +290,7 @@ function abrir(id){
         i.oncontextmenu=e=>{e.preventDefault();abrirMenuFoto(e.clientX,e.clientY,i)};
         el.appendChild(i);
       }
+      if(typeof m.audio==="string"&&m.audio.startsWith("data:audio/"))el.appendChild(player(d.id,m.audio));
       if(m.texto)el.appendChild(comLinks(m.texto));
       if(m.de==="cliente"&&m.texto&&m.texto.startsWith("🛒 Pedido do catálogo"))el.appendChild(botaoCopiar(m.texto,id));
       const s=document.createElement("small");s.textContent=hora(m.criado);el.appendChild(s);
@@ -312,7 +323,7 @@ $("login").onsubmit=async e=>{
   try{await signInWithEmailAndPassword(auth,$("em").value.trim(),$("pw").value)}
   catch(err){erro("Não entrou: "+err.code)}
 };
-$("sair").onclick=()=>signOut(auth);
+$("sair").onclick=()=>{gravador.descartar();signOut(auth)};
 
 function aviso(t){$("aviso").style.display=t?"block":"none";$("aviso").textContent=t||""}
 
@@ -337,6 +348,89 @@ function reduzir(file){
     img.src=url;
   });
 }
+
+// ---- áudio: gravar, ouvir antes e enviar (fica salvo na própria mensagem) ----
+const MAX_SEG=60;
+const relogio=s=>Math.floor(s/60)+":"+String(s%60).padStart(2,"0");
+const players=new Map(); // reaproveita o player para o áudio não parar quando chega mensagem
+function player(id,src){
+  let a=players.get(id);
+  if(!a){a=document.createElement("audio");a.controls=true;a.preload="metadata";a.src=src;players.set(id,a)}
+  return a;
+}
+function criarGravador({botao,barra,destino,mandar,falhar,dica}){
+  let atual=null;
+  const botaoBarra=(t,fn,cls)=>{const b=document.createElement("button");b.type="button";b.textContent=t;b.onclick=fn;if(cls)b.className=cls;return b};
+  function mostrar(texto,...itens){
+    const s=document.createElement("span");s.textContent=texto;
+    barra.replaceChildren(s,...itens);barra.classList.add("on");
+    return s;
+  }
+  function soltar(g){clearInterval(g.relogio);if(g.stream)g.stream.getTracks().forEach(t=>t.stop())}
+  function descartar(){
+    const g=atual;atual=null;
+    if(g){soltar(g);if(g.rec&&g.rec.state!=="inactive")g.rec.stop()}
+    barra.replaceChildren();barra.classList.remove("on");
+  }
+  function revisar(g){
+    const tipo=g.rec.mimeType||g.partes[0]?.type||"audio/webm";
+    const leitor=new FileReader();
+    leitor.onload=()=>{
+      if(atual!==g)return;
+      const dados=String(leitor.result).replace(/^data:video\//,"data:audio/");
+      if(!g.partes.length){descartar();falhar("A gravação saiu vazia. Tente de novo.");return}
+      if(dados.length>900000){descartar();falhar("Esse áudio ficou grande demais. Grave um mais curto.");return}
+      const a=document.createElement("audio");a.controls=true;a.src=dados;
+      const ok=botaoBarra("Enviar áudio",async()=>{
+        ok.disabled=nao.disabled=true;ok.textContent="Enviando…";falhar("");
+        try{await mandar(g.alvo,dados,g.seg);if(atual===g)descartar()}
+        catch(e){ok.disabled=nao.disabled=false;ok.textContent="Enviar áudio";falhar("Não consegui enviar o áudio: "+(e.code||e.message))}
+      });
+      const nao=botaoBarra("Apagar",descartar,"sec");
+      mostrar("Ouça antes de enviar:",a,ok,nao);
+    };
+    leitor.readAsDataURL(new Blob(g.partes,{type:tipo}));
+  }
+  botao.onclick=async()=>{
+    if(atual)return;
+    const alvo=destino();if(!alvo)return;
+    falhar("");
+    if(!navigator.mediaDevices||!window.MediaRecorder){falhar("Este navegador não grava áudio. Abra no Chrome ou no Safari.");return}
+    const g=atual={alvo,partes:[],seg:0};
+    mostrar("Liberando o microfone…",botaoBarra("Cancelar",descartar,"sec"));
+    try{
+      const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+      if(atual!==g){stream.getTracks().forEach(t=>t.stop());return}
+      g.stream=stream;
+      const tipo=["audio/mp4;codecs=mp4a.40.2","audio/webm;codecs=opus","audio/webm","audio/mp4"].find(t=>MediaRecorder.isTypeSupported(t));
+      g.rec=new MediaRecorder(stream,{...(tipo?{mimeType:tipo}:{}),audioBitsPerSecond:32000});
+      g.rec.ondataavailable=e=>{if(e.data.size)g.partes.push(e.data)};
+      g.rec.onstop=()=>{soltar(g);if(atual===g)revisar(g)};
+      g.rec.start();
+      const parar=()=>{clearInterval(g.relogio);if(g.rec.state!=="inactive")g.rec.stop()};
+      const texto=()=>"🔴 Gravando "+relogio(g.seg)+" de "+relogio(MAX_SEG)+(dica?" · "+dica:"");
+      const s=mostrar(texto(),botaoBarra("⏹ Parar",parar),botaoBarra("Cancelar",descartar,"sec"));
+      const inicio=Date.now();
+      g.relogio=setInterval(()=>{g.seg=Math.min(MAX_SEG,Math.floor((Date.now()-inicio)/1000));s.textContent=texto();if(g.seg>=MAX_SEG)parar()},250);
+    }catch(e){
+      if(atual!==g)return;
+      descartar();
+      falhar(e.name==="NotAllowedError"?"O microfone está bloqueado. Libere o microfone para este site nas permissões do navegador.":"Não consegui usar o microfone: "+(e.message||e.name));
+    }
+  };
+  return {descartar};
+}
+
+const gravador=criarGravador({
+  botao:$("mic"),barra:$("grav"),falhar:erro,
+  destino:()=>{if(!cur)erro("Escolha uma conversa na lista antes de gravar.");return cur},
+  mandar:async(id,audio,seg)=>{
+    const rotulo="🎤 Áudio ("+relogio(seg)+")",b=writeBatch(db);
+    b.set(doc(collection(db,"chats",id,"messages")),{de:"loja",texto:rotulo,audio,criado:serverTimestamp()});
+    b.set(doc(db,"chats",id),{ultima:"Você: "+rotulo,atualizado:serverTimestamp(),naoLidas:0},{merge:true});
+    await b.commit();
+  }
+});
 
 $("foto").onchange=async()=>{
   const file=$("foto").files[0];$("foto").value="";
@@ -374,7 +468,7 @@ $("apagar").onclick=async()=>{
   if(!confirm('Apagar a conversa com "'+((c&&c.nome)||"Cliente")+'"? Não tem volta.'))return;
   try{
     if(offMsgs){offMsgs();offMsgs=null}
-    cur=null;
+    cur=null;gravador.descartar();
     $("titulo").textContent="Nenhuma conversa aberta";$("apagar").style.display="none";$("sit").style.display="none";$("lembBtn").style.display="none";$("lemb").hidden=true;
     $("msgs").innerHTML='<p class="empty">Escolha uma conversa.</p>';
     const snap=await getDocs(collection(db,"chats",id,"messages"));

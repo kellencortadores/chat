@@ -29,14 +29,24 @@ header b{display:block;line-height:1.1}header small{opacity:.85}
 .me{align-self:flex-end;background:var(--berry);color:#fff;border-bottom-right-radius:4px}
 @media(prefers-color-scheme:dark){.me{color:#2A1F2D}}
 .other{align-self:flex-start;background:var(--theirs);border-bottom-left-radius:4px}
-form{display:flex;gap:6px;padding:10px;border-top:1px solid var(--line)}
+form{display:flex;gap:6px;padding:8px 10px 10px;border-top:1px solid var(--line)}
 input{flex:1;min-width:0;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:999px;padding:11px 14px;font:inherit;font-size:16px}
 button{border:0;background:var(--berry);color:#fff;border-radius:999px;padding:0 18px;font:inherit;font-weight:600}
 @media(prefers-color-scheme:dark){button{color:#2A1F2D}}
 button:focus-visible,input:focus-visible{outline:3px solid var(--butter);outline-offset:2px}
 .clip{display:grid;place-items:center;flex:none;width:46px;border:1px solid var(--line);border-radius:999px;color:var(--berry);cursor:pointer}
 .clip:focus-within{outline:3px solid var(--butter);outline-offset:2px}
+.m audio{display:block;width:250px;max-width:100%;margin-bottom:4px}
+.m:has(audio){width:min(290px,88%);max-width:88%}
+button.mic{background:none;color:var(--berry);padding:0}
+#grav{display:none;flex-wrap:wrap;gap:6px;align-items:center;margin:8px 10px 0;padding:10px;border:2px solid var(--berry);border-radius:12px;font-size:.9rem}
+#grav.on{display:flex}
+#grav span,#grav audio{flex:1 1 100%;width:100%}
+#grav button{padding:8px 14px;border-radius:999px}
+#grav button.sec{background:none;color:var(--berry);border:1px solid var(--line)}
+#dicaAudio{font-size:.78rem;color:var(--mute);text-align:center;padding:6px 10px 0}
 .sr{position:absolute;width:1px;height:1px;padding:0;border:0;opacity:0;overflow:hidden}
+#nome[style*="flex"]~#dicaAudio{display:none}
 #nome{padding:24px 16px;display:none;flex-direction:column;gap:10px}
 #nome p{margin:0;font-weight:600}
 #nome button{padding:11px 18px}
@@ -78,9 +88,11 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--butter);outline
 <div id="aviso"></div>
 <div id="pedido" role="region" aria-label="Pedido do catálogo"><b>Confira seu pedido e toque em enviar</b><div id="pedidoTxt"></div><div class="acoes"><button id="pedidoOk" type="button">Enviar pedido</button><button id="pedidoNao" type="button">Cancelar</button></div></div>
 <div id="atalhos"></div><div id="sug"></div>
+<div id="grav" aria-live="polite"></div>
+<div id="dicaAudio">🎤 Áudios curtinhos, de até 1 minuto. Pode mandar quantos precisar!</div>
 <form id="f">
 <label class="clip" aria-label="Enviar foto"><input id="foto" class="sr" type="file" accept="image/*"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg></label>
-<input id="txt" placeholder="Escreva sua mensagem" autocomplete="off" aria-label="Mensagem"><button>Enviar</button>
+<button class="clip mic" id="mic" type="button" aria-label="Gravar áudio" title="Gravar áudio"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10v1a7 7 0 0 0 14 0v-1M12 18v4"/></svg></button><input id="txt" placeholder="Escreva sua mensagem" autocomplete="off" aria-label="Mensagem"><button>Enviar</button>
 </form>
 </div>
 <div id="zoom" role="dialog" aria-label="Foto ampliada"><img alt="Foto ampliada"></div>
@@ -221,11 +233,12 @@ function desenhar(){
       i.onclick=()=>ampliar(m.imagem);i.onload=()=>{box.scrollTop=box.scrollHeight};
       el.appendChild(i);
     }
+    if(typeof m.audio==="string"&&m.audio.startsWith("data:audio/"))el.appendChild(player(d.id,m.audio));
     if(m.texto)el.appendChild(comLinks(m.texto));
     const s=document.createElement("small");s.textContent=hora(m.criado);el.appendChild(s);
     box.appendChild(el);
     // resposta automática: só aparece para a cliente (não é gravada no Firebase)
-    if(m.de==="cliente"&&m.texto&&!m.texto.startsWith(PEDIDO)){
+    if(m.de==="cliente"&&m.texto&&!m.audio&&!m.texto.startsWith(PEDIDO)){
       const op=m.texto.startsWith(PREFIXO)?ORCAMENTO.find(o=>o[0]===m.texto.slice(PREFIXO.length)):null;
       if(op){
         const r=document.createElement("div");r.className="m other";
@@ -275,6 +288,88 @@ $("f").onsubmit=async e=>{
   try{await enviar({texto:t},t)}
   catch(err){erro("Não consegui enviar: "+(err.code||err.message))}
 };
+
+// ---- áudio: gravar, ouvir antes e enviar (fica salvo na própria mensagem) ----
+const MAX_SEG=60;
+const relogio=s=>Math.floor(s/60)+":"+String(s%60).padStart(2,"0");
+const players=new Map(); // reaproveita o player para o áudio não parar quando chega mensagem
+function player(id,src){
+  let a=players.get(id);
+  if(!a){a=document.createElement("audio");a.controls=true;a.preload="metadata";a.src=src;players.set(id,a)}
+  return a;
+}
+function criarGravador({botao,barra,destino,mandar,falhar,dica}){
+  let atual=null;
+  const botaoBarra=(t,fn,cls)=>{const b=document.createElement("button");b.type="button";b.textContent=t;b.onclick=fn;if(cls)b.className=cls;return b};
+  function mostrar(texto,...itens){
+    const s=document.createElement("span");s.textContent=texto;
+    barra.replaceChildren(s,...itens);barra.classList.add("on");
+    return s;
+  }
+  function soltar(g){clearInterval(g.relogio);if(g.stream)g.stream.getTracks().forEach(t=>t.stop())}
+  function descartar(){
+    const g=atual;atual=null;
+    if(g){soltar(g);if(g.rec&&g.rec.state!=="inactive")g.rec.stop()}
+    barra.replaceChildren();barra.classList.remove("on");
+  }
+  function revisar(g){
+    const tipo=g.rec.mimeType||g.partes[0]?.type||"audio/webm";
+    const leitor=new FileReader();
+    leitor.onload=()=>{
+      if(atual!==g)return;
+      const dados=String(leitor.result).replace(/^data:video\//,"data:audio/");
+      if(!g.partes.length){descartar();falhar("A gravação saiu vazia. Tente de novo.");return}
+      if(dados.length>900000){descartar();falhar("Esse áudio ficou grande demais. Grave um mais curto.");return}
+      const a=document.createElement("audio");a.controls=true;a.src=dados;
+      const ok=botaoBarra("Enviar áudio",async()=>{
+        ok.disabled=nao.disabled=true;ok.textContent="Enviando…";falhar("");
+        try{await mandar(g.alvo,dados,g.seg);if(atual===g)descartar()}
+        catch(e){ok.disabled=nao.disabled=false;ok.textContent="Enviar áudio";falhar("Não consegui enviar o áudio: "+(e.code||e.message))}
+      });
+      const nao=botaoBarra("Apagar",descartar,"sec");
+      mostrar("Ouça antes de enviar:",a,ok,nao);
+    };
+    leitor.readAsDataURL(new Blob(g.partes,{type:tipo}));
+  }
+  botao.onclick=async()=>{
+    if(atual)return;
+    const alvo=destino();if(!alvo)return;
+    falhar("");
+    if(!navigator.mediaDevices||!window.MediaRecorder){falhar("Este navegador não grava áudio. Abra no Chrome ou no Safari.");return}
+    const g=atual={alvo,partes:[],seg:0};
+    mostrar("Liberando o microfone…",botaoBarra("Cancelar",descartar,"sec"));
+    try{
+      const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+      if(atual!==g){stream.getTracks().forEach(t=>t.stop());return}
+      g.stream=stream;
+      const tipo=["audio/mp4;codecs=mp4a.40.2","audio/webm;codecs=opus","audio/webm","audio/mp4"].find(t=>MediaRecorder.isTypeSupported(t));
+      g.rec=new MediaRecorder(stream,{...(tipo?{mimeType:tipo}:{}),audioBitsPerSecond:32000});
+      g.rec.ondataavailable=e=>{if(e.data.size)g.partes.push(e.data)};
+      g.rec.onstop=()=>{soltar(g);if(atual===g)revisar(g)};
+      g.rec.start();
+      const parar=()=>{clearInterval(g.relogio);if(g.rec.state!=="inactive")g.rec.stop()};
+      const texto=()=>"🔴 Gravando "+relogio(g.seg)+" de "+relogio(MAX_SEG)+(dica?" · "+dica:"");
+      const s=mostrar(texto(),botaoBarra("⏹ Parar",parar),botaoBarra("Cancelar",descartar,"sec"));
+      const inicio=Date.now();
+      g.relogio=setInterval(()=>{g.seg=Math.min(MAX_SEG,Math.floor((Date.now()-inicio)/1000));s.textContent=texto();if(g.seg>=MAX_SEG)parar()},250);
+    }catch(e){
+      if(atual!==g)return;
+      descartar();
+      falhar(e.name==="NotAllowedError"?"O microfone está bloqueado. Libere o microfone para este site nas permissões do navegador.":"Não consegui usar o microfone: "+(e.message||e.name));
+    }
+  };
+  return {descartar};
+}
+
+criarGravador({
+  botao:$("mic"),barra:$("grav"),falhar:erro,dica:"seja breve; depois pode mandar outro",
+  destino:()=>uid&&$("msgs").style.display!=="none"?uid:null,
+  mandar:async(_,audio,seg)=>{
+    const rotulo="🎤 Áudio ("+relogio(seg)+")";
+    await enviar({texto:rotulo,audio},rotulo);
+    aviso("Áudio enviado! Se faltou algo, pode gravar outro 😊");setTimeout(()=>aviso(""),5000);
+  }
+});
 
 $("foto").onchange=async()=>{
   const file=$("foto").files[0];$("foto").value="";
