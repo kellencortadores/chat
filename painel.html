@@ -38,7 +38,9 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--butter);outline
 .badge{background:var(--berry);color:#fff;border-radius:999px;min-width:22px;text-align:center;font-size:.75rem;padding:1px 6px}
 @media(prefers-color-scheme:dark){.badge{color:#2A1F2D}}
 .conv{display:flex;flex-direction:column;padding:12px;min-height:320px}
-.titulo{font-weight:700;padding:0 0 8px;margin-bottom:8px;border-bottom:1px solid var(--line)}
+.titulo{font-weight:700;padding:0 0 8px;margin-bottom:8px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:8px}
+#apagar{display:none;background:none;color:#B3261E;border:1px solid var(--line);padding:4px 10px;font-weight:400}
+@media(prefers-color-scheme:dark){#apagar{color:#F2B8B5}}
 #msgs{flex:1;overflow:auto;display:flex;flex-direction:column;gap:6px;max-height:460px}
 .m{max-width:80%;padding:8px 11px;border-radius:16px;word-wrap:break-word;white-space:pre-wrap}
 .m small{display:block;opacity:.65;font-size:.7rem;margin-top:2px}
@@ -67,7 +69,7 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--butter);outline
 <div class="top"><b>Conversas</b><span id="count"></span><button id="som" type="button" aria-pressed="true">🔔 Som ligado</button><button id="sair" type="button">Sair</button></div>
 <div class="cols">
 <div id="list"></div>
-<div class="conv"><div id="titulo" class="titulo">Nenhuma conversa aberta</div><div id="msgs" aria-live="polite"><p class="empty">Escolha uma conversa.</p></div>
+<div class="conv"><div class="titulo"><span id="titulo">Nenhuma conversa aberta</span><button id="apagar" type="button">🗑 Apagar</button></div><div id="msgs" aria-live="polite"><p class="empty">Escolha uma conversa.</p></div>
 <div id="aviso"></div>
 <form id="f"><label class="clip" aria-label="Enviar foto"><input id="foto" class="sr" type="file" accept="image/*"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg></label><input id="txt" placeholder="Responder" autocomplete="off" aria-label="Sua resposta"><button>Responder</button></form></div>
 </div>
@@ -77,7 +79,7 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--butter);outline
 <script type="module">
 import {initializeApp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {getAuth,signInWithEmailAndPassword,signOut,onAuthStateChanged} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import {getFirestore,doc,setDoc,collection,query,orderBy,onSnapshot,serverTimestamp,writeBatch} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import {getFirestore,doc,setDoc,getDocs,deleteDoc,collection,query,orderBy,limit,onSnapshot,serverTimestamp,writeBatch} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import {firebaseConfig} from "./firebase-config.js";
 
 const $=i=>document.getElementById(i);
@@ -104,7 +106,7 @@ function plim(){
     const o=ctx.createOscillator(),g=ctx.createGain();
     o.type="sine";o.frequency.value=f;
     g.gain.setValueAtTime(0.0001,t+d);
-    g.gain.exponentialRampToValueAtTime(0.35,t+d+.02);
+    g.gain.exponentialRampToValueAtTime(0.6,t+d+.02);
     g.gain.exponentialRampToValueAtTime(0.0001,t+d+.5);
     o.connect(g);g.connect(ctx.destination);
     o.start(t+d);o.stop(t+d+.55);
@@ -138,6 +140,7 @@ function desenharLista(){
 
 function abrir(id){
   cur=id;
+  $("apagar").style.display="inline-block";
   if(offMsgs)offMsgs();
   const c0=chats.find(c=>c.id===id);$("titulo").textContent=c0?(c0.nome||"Cliente"):"";
   setDoc(doc(db,"chats",id),{naoLidas:0},{merge:true});
@@ -169,7 +172,8 @@ function abrir(id){
 
 function iniciar(){
   $("login").style.display="none";$("desk").style.display="block";erro("");
-  const q=query(collection(db,"chats"),orderBy("atualizado","desc"));
+  // mostra só as 50 conversas mais recentes
+  const q=query(collection(db,"chats"),orderBy("atualizado","desc"),limit(50));
   let antes=null;
   offList=onSnapshot(q,snap=>{
     const novos=snap.docs.map(d=>({id:d.id,...d.data()}));
@@ -239,6 +243,24 @@ $("f").onsubmit=async e=>{
   b.set(doc(collection(db,"chats",cur,"messages")),{de:"loja",texto:t,criado:serverTimestamp()});
   b.set(doc(db,"chats",cur),{ultima:"Você: "+t,atualizado:serverTimestamp(),naoLidas:0},{merge:true});
   try{await b.commit()}catch(err){erro("Não consegui enviar: "+err.code)}
+};
+
+// apaga a conversa inteira: primeiro as mensagens, depois o documento da conversa
+$("apagar").onclick=async()=>{
+  if(!cur)return;
+  const id=cur,c=chats.find(x=>x.id===id);
+  if(!confirm('Apagar a conversa com "'+((c&&c.nome)||"Cliente")+'"? Não tem volta.'))return;
+  try{
+    if(offMsgs){offMsgs();offMsgs=null}
+    cur=null;
+    $("titulo").textContent="Nenhuma conversa aberta";$("apagar").style.display="none";
+    $("msgs").innerHTML='<p class="empty">Escolha uma conversa.</p>';
+    const snap=await getDocs(collection(db,"chats",id,"messages"));
+    let b=writeBatch(db),n=0;
+    for(const d of snap.docs){b.delete(d.ref);if(++n===400){await b.commit();b=writeBatch(db);n=0}}
+    await b.commit();
+    await deleteDoc(doc(db,"chats",id));
+  }catch(err){erro("Não consegui apagar: "+(err.code||err.message))}
 };
 
 onAuthStateChanged(auth,u=>{

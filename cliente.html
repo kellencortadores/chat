@@ -71,6 +71,31 @@ const app=initializeApp(firebaseConfig),auth=getAuth(app),db=getFirestore(app);
 let uid=null,nome="";
 try{nome=localStorage.getItem("nome")||""}catch(e){}
 
+// ---- som de aviso quando a loja responde (gerado pelo navegador, sem arquivo) ----
+let ctx=null;
+function preparar(){
+  try{
+    if(!ctx)ctx=new (window.AudioContext||window.webkitAudioContext)();
+    if(ctx.state==="suspended")ctx.resume();
+  }catch(e){}
+}
+function plim(){
+  preparar();if(!ctx)return;
+  const t=ctx.currentTime;
+  [[880,0],[1318.5,.14]].forEach(([f,d])=>{
+    const o=ctx.createOscillator(),g=ctx.createGain();
+    o.type="sine";o.frequency.value=f;
+    g.gain.setValueAtTime(0.0001,t+d);
+    g.gain.exponentialRampToValueAtTime(0.5,t+d+.02);
+    g.gain.exponentialRampToValueAtTime(0.0001,t+d+.5);
+    o.connect(g);g.connect(ctx.destination);
+    o.start(t+d);o.stop(t+d+.55);
+  });
+}
+// o navegador só libera o som depois de um toque/clique na página
+document.addEventListener("pointerdown",preparar);
+document.addEventListener("keydown",preparar);
+
 function erro(t){$("erro").style.display=t?"block":"none";$("erro").textContent=t||""}
 function aviso(t){$("aviso").style.display=t?"block":"none";$("aviso").textContent=t||""}
 function hora(ts){var d=ts&&ts.toDate?ts.toDate():new Date();return d.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})}
@@ -108,7 +133,11 @@ async function enviar(dados,resumo){
 
 function escutar(){
   const q=query(collection(db,"chats",uid,"messages"),orderBy("criado"));
+  let primeira=true;
   onSnapshot(q,snap=>{
+    // toca quando chega mensagem nova da loja
+    if(!primeira&&snap.docChanges().some(ch=>ch.type==="added"&&!ch.doc.metadata.hasPendingWrites&&ch.doc.data().de==="loja"))plim();
+    primeira=false;
     const box=$("msgs");box.innerHTML="";
     snap.forEach(d=>{
       const m=d.data(),el=document.createElement("div");
