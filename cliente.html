@@ -18,6 +18,7 @@ header b{display:block;line-height:1.1}header small{opacity:.85}
 #msgs{flex:1;overflow:auto;display:flex;flex-direction:column;gap:6px;padding:12px}
 .m{max-width:80%;padding:8px 11px;border-radius:16px;word-wrap:break-word;white-space:pre-wrap}
 .m small{display:block;opacity:.65;font-size:.7rem;margin-top:2px}
+.m img{display:block;width:240px;max-width:100%;max-height:300px;object-fit:cover;border-radius:10px;cursor:zoom-in;margin-bottom:4px}
 .me{align-self:flex-end;background:var(--berry);color:#fff;border-bottom-right-radius:4px}
 @media(prefers-color-scheme:dark){.me{color:#2A1F2D}}
 .other{align-self:flex-start;background:var(--theirs);border-bottom-left-radius:4px}
@@ -26,10 +27,17 @@ input{flex:1;min-width:0;border:1px solid var(--line);background:var(--bg);color
 button{border:0;background:var(--berry);color:#fff;border-radius:999px;padding:0 18px;font:inherit;font-weight:600}
 @media(prefers-color-scheme:dark){button{color:#2A1F2D}}
 button:focus-visible,input:focus-visible{outline:3px solid var(--butter);outline-offset:2px}
+.clip{display:grid;place-items:center;flex:none;width:46px;border:1px solid var(--line);border-radius:999px;color:var(--berry);cursor:pointer}
+.clip:focus-within{outline:3px solid var(--butter);outline-offset:2px}
+.sr{position:absolute;width:1px;height:1px;padding:0;border:0;opacity:0;overflow:hidden}
 #nome{padding:24px 16px;display:none;flex-direction:column;gap:10px}
 #nome p{margin:0;font-weight:600}
 #nome button{padding:11px 18px}
 #erro{color:#B3261E;padding:12px;display:none}
+#aviso{color:var(--mute);font-size:.85rem;padding:4px 12px;display:none}
+#zoom{position:fixed;inset:0;background:rgba(0,0,0,.88);display:none;align-items:center;justify-content:center;z-index:9;padding:16px}
+#zoom.on{display:flex}
+#zoom img{max-width:100%;max-height:100%;border-radius:8px}
 </style>
 </head>
 <body>
@@ -38,12 +46,17 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--butter);outline
 <div id="erro"></div>
 <div id="nome"><p>Como você se chama?</p><input id="nomeIn" placeholder="Seu nome" autocomplete="given-name"><button id="nomeOk" type="button">Começar conversa</button></div>
 <div id="msgs" aria-live="polite"></div>
-<form id="f"><input id="txt" placeholder="Escreva sua mensagem" autocomplete="off" aria-label="Mensagem"><button>Enviar</button></form>
+<div id="aviso"></div>
+<form id="f">
+<label class="clip" aria-label="Enviar foto"><input id="foto" class="sr" type="file" accept="image/*"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg></label>
+<input id="txt" placeholder="Escreva sua mensagem" autocomplete="off" aria-label="Mensagem"><button>Enviar</button>
+</form>
 </div>
+<div id="zoom" role="dialog" aria-label="Foto ampliada"><img alt="Foto ampliada"></div>
 <script type="module">
 import {initializeApp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {getAuth,signInAnonymously,onAuthStateChanged} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import {getFirestore,doc,setDoc,addDoc,collection,query,orderBy,onSnapshot,serverTimestamp,increment} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import {getFirestore,doc,collection,query,orderBy,onSnapshot,serverTimestamp,increment,writeBatch} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import {firebaseConfig} from "./firebase-config.js";
 
 const $=i=>document.getElementById(i);
@@ -51,8 +64,40 @@ const app=initializeApp(firebaseConfig),auth=getAuth(app),db=getFirestore(app);
 let uid=null,nome="";
 try{nome=localStorage.getItem("nome")||""}catch(e){}
 
-function erro(t){$("erro").style.display="block";$("erro").textContent=t}
+function erro(t){$("erro").style.display=t?"block":"none";$("erro").textContent=t||""}
+function aviso(t){$("aviso").style.display=t?"block":"none";$("aviso").textContent=t||""}
 function hora(ts){var d=ts&&ts.toDate?ts.toDate():new Date();return d.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})}
+function ampliar(src){$("zoom").firstElementChild.src=src;$("zoom").classList.add("on")}
+$("zoom").onclick=()=>$("zoom").classList.remove("on");
+
+// reduz a foto até caber com folga no limite de 1 MB por documento do Firestore
+function reduzir(file){
+  return new Promise((ok,no)=>{
+    const url=URL.createObjectURL(file),img=new Image();
+    img.onload=()=>{
+      URL.revokeObjectURL(url);
+      for(const [lado,q] of [[1000,.7],[800,.6],[600,.5],[400,.5]]){
+        const r=Math.min(1,lado/Math.max(img.width,img.height));
+        const c=document.createElement("canvas");
+        c.width=Math.max(1,Math.round(img.width*r));c.height=Math.max(1,Math.round(img.height*r));
+        const x=c.getContext("2d");x.fillStyle="#fff";x.fillRect(0,0,c.width,c.height);
+        x.drawImage(img,0,0,c.width,c.height);
+        const d=c.toDataURL("image/jpeg",q);
+        if(d.length<900000)return ok(d);
+      }
+      no(new Error("imagem grande demais"));
+    };
+    img.onerror=()=>no(new Error("formato de imagem não aceito"));
+    img.src=url;
+  });
+}
+
+async function enviar(dados,resumo){
+  const b=writeBatch(db);
+  b.set(doc(collection(db,"chats",uid,"messages")),{de:"cliente",...dados,criado:serverTimestamp()});
+  b.set(doc(db,"chats",uid),{nome:nome||"Cliente",ultima:resumo,atualizado:serverTimestamp(),naoLidas:increment(1)},{merge:true});
+  await b.commit();
+}
 
 function escutar(){
   const q=query(collection(db,"chats",uid,"messages"),orderBy("criado"));
@@ -61,7 +106,12 @@ function escutar(){
     snap.forEach(d=>{
       const m=d.data(),el=document.createElement("div");
       el.className="m "+(m.de==="cliente"?"me":"other");
-      el.textContent=m.texto;
+      if(m.imagem){
+        const i=document.createElement("img");i.src=m.imagem;i.alt="Foto enviada";
+        i.onclick=()=>ampliar(m.imagem);i.onload=()=>{box.scrollTop=box.scrollHeight};
+        el.appendChild(i);
+      }
+      if(m.texto)el.appendChild(document.createTextNode(m.texto));
       const s=document.createElement("small");s.textContent=hora(m.criado);el.appendChild(s);
       box.appendChild(el);
     });
@@ -83,11 +133,22 @@ $("nomeOk").onclick=()=>{
 $("f").onsubmit=async e=>{
   e.preventDefault();
   const t=$("txt").value.trim();if(!t||!uid)return;
-  $("txt").value="";
+  $("txt").value="";erro("");
+  try{await enviar({texto:t},t)}
+  catch(err){erro("Não consegui enviar: "+(err.code||err.message))}
+};
+
+$("foto").onchange=async()=>{
+  const file=$("foto").files[0];$("foto").value="";
+  if(!file||!uid)return;
+  const legenda=$("txt").value.trim();
+  erro("");aviso("Enviando foto…");
   try{
-    await addDoc(collection(db,"chats",uid,"messages"),{de:"cliente",texto:t,criado:serverTimestamp()});
-    await setDoc(doc(db,"chats",uid),{nome:nome||"Cliente",ultima:t,atualizado:serverTimestamp(),naoLidas:increment(1)},{merge:true});
-  }catch(err){erro("Não consegui enviar: "+err.code)}
+    const img=await reduzir(file);
+    await enviar({texto:legenda,imagem:img},"📷 "+(legenda||"Foto"));
+    $("txt").value="";
+  }catch(err){erro("Não consegui enviar a foto: "+(err.code||err.message))}
+  aviso("");
 };
 
 onAuthStateChanged(auth,u=>{

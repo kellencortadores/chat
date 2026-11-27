@@ -31,15 +31,20 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--butter);outline
 .badge{background:var(--berry);color:#fff;border-radius:999px;min-width:22px;text-align:center;font-size:.75rem;padding:1px 6px}
 @media(prefers-color-scheme:dark){.badge{color:#2A1F2D}}
 .conv{display:flex;flex-direction:column;padding:12px;min-height:320px}
+.titulo{font-weight:700;padding:0 0 8px;margin-bottom:8px;border-bottom:1px solid var(--line)}
 #msgs{flex:1;overflow:auto;display:flex;flex-direction:column;gap:6px;max-height:460px}
 .m{max-width:80%;padding:8px 11px;border-radius:16px;word-wrap:break-word;white-space:pre-wrap}
 .m small{display:block;opacity:.65;font-size:.7rem;margin-top:2px}
+.m img{display:block;width:260px;max-width:100%;max-height:320px;object-fit:cover;border-radius:10px;cursor:zoom-in;margin-bottom:4px}
 .me{align-self:flex-end;background:var(--berry);color:#fff;border-bottom-right-radius:4px}
 @media(prefers-color-scheme:dark){.me{color:#2A1F2D}}
 .other{align-self:flex-start;background:var(--theirs);border-bottom-left-radius:4px}
 .empty{color:var(--mute);margin:auto;text-align:center}
 #f{display:flex;gap:6px;margin-top:8px}
 #f input{flex:1}
+#zoom{position:fixed;inset:0;background:rgba(0,0,0,.88);display:none;align-items:center;justify-content:center;z-index:9;padding:16px}
+#zoom.on{display:flex}
+#zoom img{max-width:100%;max-height:100%;border-radius:8px}
 </style>
 </head>
 <body>
@@ -51,15 +56,16 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--butter);outline
 <div class="top"><b>Conversas</b><span id="count"></span><button id="sair" type="button">Sair</button></div>
 <div class="cols">
 <div id="list"></div>
-<div class="conv"><div id="msgs" aria-live="polite"><p class="empty">Escolha uma conversa.</p></div>
+<div class="conv"><div id="titulo" class="titulo">Nenhuma conversa aberta</div><div id="msgs" aria-live="polite"><p class="empty">Escolha uma conversa.</p></div>
 <form id="f"><input id="txt" placeholder="Responder" autocomplete="off" aria-label="Sua resposta"><button>Responder</button></form></div>
 </div>
 </div>
 </div>
+<div id="zoom" role="dialog" aria-label="Foto ampliada"><img alt="Foto ampliada"></div>
 <script type="module">
 import {initializeApp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {getAuth,signInWithEmailAndPassword,signOut,onAuthStateChanged} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import {getFirestore,doc,setDoc,addDoc,collection,query,orderBy,onSnapshot,serverTimestamp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import {getFirestore,doc,setDoc,collection,query,orderBy,onSnapshot,serverTimestamp,writeBatch} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import {firebaseConfig} from "./firebase-config.js";
 
 const $=i=>document.getElementById(i);
@@ -68,6 +74,8 @@ let cur=null,offList=null,offMsgs=null,chats=[];
 
 function erro(t){$("erro").textContent=t}
 function hora(ts){var d=ts&&ts.toDate?ts.toDate():new Date();return d.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})}
+function ampliar(src){$("zoom").firstElementChild.src=src;$("zoom").classList.add("on")}
+$("zoom").onclick=()=>$("zoom").classList.remove("on");
 
 function desenharLista(){
   const l=$("list");l.innerHTML="";let aguardando=0;
@@ -89,6 +97,7 @@ function desenharLista(){
 function abrir(id){
   cur=id;
   if(offMsgs)offMsgs();
+  const c0=chats.find(c=>c.id===id);$("titulo").textContent=c0?(c0.nome||"Cliente"):"";
   setDoc(doc(db,"chats",id),{naoLidas:0},{merge:true});
   const q=query(collection(db,"chats",id,"messages"),orderBy("criado"));
   offMsgs=onSnapshot(q,snap=>{
@@ -96,7 +105,12 @@ function abrir(id){
     snap.forEach(d=>{
       const m=d.data(),el=document.createElement("div");
       el.className="m "+(m.de==="loja"?"me":"other");
-      el.textContent=m.texto;
+      if(m.imagem){
+        const i=document.createElement("img");i.src=m.imagem;i.alt="Foto enviada";
+        i.onclick=()=>ampliar(m.imagem);i.onload=()=>{box.scrollTop=box.scrollHeight};
+        el.appendChild(i);
+      }
+      if(m.texto)el.appendChild(document.createTextNode(m.texto));
       const s=document.createElement("small");s.textContent=hora(m.criado);el.appendChild(s);
       box.appendChild(el);
     });
@@ -125,12 +139,14 @@ $("sair").onclick=()=>signOut(auth);
 
 $("f").onsubmit=async e=>{
   e.preventDefault();
-  const t=$("txt").value.trim();if(!t||!cur)return;
-  $("txt").value="";
-  try{
-    await addDoc(collection(db,"chats",cur,"messages"),{de:"loja",texto:t,criado:serverTimestamp()});
-    await setDoc(doc(db,"chats",cur),{ultima:"Você: "+t,atualizado:serverTimestamp(),naoLidas:0},{merge:true});
-  }catch(err){erro("Não consegui enviar: "+err.code)}
+  const t=$("txt").value.trim();
+  if(!t)return;
+  if(!cur){erro("Escolha uma conversa na lista antes de responder.");return}
+  erro("");$("txt").value="";
+  const b=writeBatch(db);
+  b.set(doc(collection(db,"chats",cur,"messages")),{de:"loja",texto:t,criado:serverTimestamp()});
+  b.set(doc(db,"chats",cur),{ultima:"Você: "+t,atualizado:serverTimestamp(),naoLidas:0},{merge:true});
+  try{await b.commit()}catch(err){erro("Não consegui enviar: "+err.code)}
 };
 
 onAuthStateChanged(auth,u=>{
