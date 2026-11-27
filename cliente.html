@@ -4,6 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Kellen Cortadores – Conversa</title>
+<link rel="manifest" href="manifest-cliente.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<meta name="theme-color" content="#6B2D5C">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Kellen">
 <style>
 :root{--bg:#F6F2FA;--surf:#fff;--ink:#2A1F2D;--mute:#6D6174;--line:#E4DCEC;--berry:#6B2D5C;--butter:#FFE9A8;--theirs:#EFE8F5}
 @media(prefers-color-scheme:dark){:root{--bg:#1B1420;--surf:#261C2C;--ink:#F3ECF7;--mute:#B2A5BA;--line:#3A2D42;--berry:#E7A6D6;--theirs:#34273C}}
@@ -158,6 +165,7 @@ onAuthStateChanged(auth,u=>{
   else{$("nome").style.display="flex";$("f").style.display="none";$("msgs").style.display="none"}
 });
 signInAnonymously(auth).catch(e=>erro("Falha ao entrar: "+e.code));
+if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
 </script>
 </body>
 </html>

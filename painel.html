@@ -4,6 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Painel de atendimento</title>
+<link rel="manifest" href="manifest-painel.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<meta name="theme-color" content="#6B2D5C">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Painel">
 <style>
 :root{--bg:#F6F2FA;--surf:#fff;--ink:#2A1F2D;--mute:#6D6174;--line:#E4DCEC;--berry:#6B2D5C;--butter:#FFE9A8;--theirs:#EFE8F5}
 @media(prefers-color-scheme:dark){:root{--bg:#1B1420;--surf:#261C2C;--ink:#F3ECF7;--mute:#B2A5BA;--line:#3A2D42;--berry:#E7A6D6;--theirs:#34273C}}
@@ -57,7 +64,7 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--butter);outline
 <form id="login"><input id="em" type="email" placeholder="Seu e-mail" autocomplete="username"><input id="pw" type="password" placeholder="Senha" autocomplete="current-password"><button>Entrar</button></form>
 <div id="erro"></div>
 <div id="desk">
-<div class="top"><b>Conversas</b><span id="count"></span><button id="sair" type="button">Sair</button></div>
+<div class="top"><b>Conversas</b><span id="count"></span><button id="som" type="button" aria-pressed="true">🔔 Som ligado</button><button id="sair" type="button">Sair</button></div>
 <div class="cols">
 <div id="list"></div>
 <div class="conv"><div id="titulo" class="titulo">Nenhuma conversa aberta</div><div id="msgs" aria-live="polite"><p class="empty">Escolha uma conversa.</p></div>
@@ -78,6 +85,36 @@ const app=initializeApp(firebaseConfig),auth=getAuth(app),db=getFirestore(app);
 let cur=null,offList=null,offMsgs=null,chats=[];
 
 function erro(t){$("erro").textContent=t}
+
+// ---- som de aviso (gerado pelo navegador, sem arquivo) ----
+let somOn=true,ctx=null;
+try{somOn=localStorage.getItem("som")!=="off"}catch(e){}
+function mostrarSom(){$("som").textContent=somOn?"🔔 Som ligado":"🔕 Som desligado";$("som").setAttribute("aria-pressed",somOn)}
+function preparar(){
+  try{
+    if(!ctx)ctx=new (window.AudioContext||window.webkitAudioContext)();
+    if(ctx.state==="suspended")ctx.resume();
+  }catch(e){}
+}
+function plim(){
+  if(!somOn)return;
+  preparar();if(!ctx)return;
+  const t=ctx.currentTime;
+  [[880,0],[1318.5,.14]].forEach(([f,d])=>{
+    const o=ctx.createOscillator(),g=ctx.createGain();
+    o.type="sine";o.frequency.value=f;
+    g.gain.setValueAtTime(0.0001,t+d);
+    g.gain.exponentialRampToValueAtTime(0.35,t+d+.02);
+    g.gain.exponentialRampToValueAtTime(0.0001,t+d+.5);
+    o.connect(g);g.connect(ctx.destination);
+    o.start(t+d);o.stop(t+d+.55);
+  });
+}
+// o navegador só libera o som depois de um toque/clique na página
+document.addEventListener("pointerdown",preparar);
+document.addEventListener("keydown",preparar);
+$("som").onclick=()=>{somOn=!somOn;try{localStorage.setItem("som",somOn?"on":"off")}catch(e){}mostrarSom();if(somOn)plim()};
+mostrarSom();
 function hora(ts){var d=ts&&ts.toDate?ts.toDate():new Date();return d.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})}
 function ampliar(src){$("zoom").firstElementChild.src=src;$("zoom").classList.add("on")}
 $("zoom").onclick=()=>$("zoom").classList.remove("on");
@@ -105,7 +142,11 @@ function abrir(id){
   const c0=chats.find(c=>c.id===id);$("titulo").textContent=c0?(c0.nome||"Cliente"):"";
   setDoc(doc(db,"chats",id),{naoLidas:0},{merge:true});
   const q=query(collection(db,"chats",id,"messages"),orderBy("criado"));
+  let primeira=true;
   offMsgs=onSnapshot(q,snap=>{
+    // conversa aberta: toca quando chega mensagem nova do cliente
+    if(!primeira&&snap.docChanges().some(ch=>ch.type==="added"&&!ch.doc.metadata.hasPendingWrites&&ch.doc.data().de==="cliente"))plim();
+    primeira=false;
     const box=$("msgs");box.innerHTML="";
     snap.forEach(d=>{
       const m=d.data(),el=document.createElement("div");
@@ -129,8 +170,13 @@ function abrir(id){
 function iniciar(){
   $("login").style.display="none";$("desk").style.display="block";erro("");
   const q=query(collection(db,"chats"),orderBy("atualizado","desc"));
+  let antes=null;
   offList=onSnapshot(q,snap=>{
-    chats=snap.docs.map(d=>({id:d.id,...d.data()}));
+    const novos=snap.docs.map(d=>({id:d.id,...d.data()}));
+    // outras conversas: toca quando o contador de não lidas sobe
+    if(antes&&novos.some(c=>c.id!==cur&&(c.naoLidas||0)>(antes[c.id]||0)))plim();
+    antes={};novos.forEach(c=>{antes[c.id]=c.naoLidas||0});
+    chats=novos;
     desenharLista();
   },e=>erro("Não consegui ler as conversas: "+e.code+" (confira as regras do Firestore)"));
 }
