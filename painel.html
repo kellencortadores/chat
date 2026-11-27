@@ -70,6 +70,23 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--butter);outline
 #res img{width:36px;height:36px;object-fit:cover;border-radius:6px}
 #sit{display:none;font:inherit;font-size:.8rem;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:8px;padding:3px 6px}
 .m a:not(.pc){color:inherit;text-decoration:underline;word-break:break-all}
+#lembBtn{display:none;background:none;color:var(--berry);border:1px solid var(--line);padding:4px 10px;font-weight:500;font-size:.85rem}
+#lemb{margin:0 0 8px;padding:10px;border:1px solid var(--line);border-radius:12px;background:var(--bg);display:flex;flex-direction:column;gap:8px}
+#lemb[hidden]{display:none}
+#lemb .ch,#lemb .lin{display:flex;flex-wrap:wrap;gap:6px}
+#lemb .ch button{background:none;color:var(--berry);border:1px solid var(--line);padding:4px 10px;font-weight:500;font-size:.85rem}
+#lemb .lin input{flex:1;min-width:180px}
+#lembDel{background:none;color:#B3261E;border:1px solid var(--line);font-weight:400}
+@media(prefers-color-scheme:dark){#lembDel{color:#F2B8B5}}
+.lemb-on{color:var(--berry)!important;font-weight:600}
+.lemb-due{color:#B3261E!important;font-weight:700}
+@media(prefers-color-scheme:dark){.lemb-on{color:#E7A6D6!important}.lemb-due{color:#F2B8B5!important}}
+#alertas{display:none;flex-direction:column;gap:6px;padding:8px 16px;background:var(--butter,#FFE9A8);color:#2A1F2D;border-bottom:1px solid var(--line)}
+#alertas.on{display:flex}
+#alertas .a{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+#alertas .a span{flex:1;min-width:160px}
+#alertas button{padding:4px 10px;font-size:.85rem;background:#2A1F2D;color:#fff}
+#alertas button.sec{background:none;color:#2A1F2D;border:1px solid #2A1F2D}
 </style>
 </head>
 <body>
@@ -79,9 +96,11 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--butter);outline
 <div id="erro"></div>
 <div id="desk">
 <div class="top"><b>Conversas</b><span id="count"></span><button id="som" type="button" aria-pressed="true">🔔 Som ligado</button><button id="sair" type="button">Sair</button></div>
+<div id="alertas" role="alert"></div>
 <div class="cols">
 <div id="list"></div>
-<div class="conv"><div class="titulo"><span id="titulo">Nenhuma conversa aberta</span><select id="sit" aria-label="Situação da conversa"></select><button id="apagar" type="button">🗑 Apagar</button></div><div id="msgs" aria-live="polite"><p class="empty">Escolha uma conversa.</p></div>
+<div class="conv"><div class="titulo"><span id="titulo">Nenhuma conversa aberta</span><select id="sit" aria-label="Situação da conversa"></select><button id="lembBtn" type="button" aria-expanded="false" aria-controls="lemb">⏰ Lembrete</button><button id="apagar" type="button">🗑 Apagar</button></div>
+<div id="lemb" hidden><input id="lembTexto" placeholder="O que preciso devolver a ela? (opcional)" maxlength="120" autocomplete="off" aria-label="Anotação do lembrete"><div class="ch" id="lembRap"></div><div class="lin"><input id="lembQuando" type="datetime-local" aria-label="Data e hora do lembrete"><button id="lembOk" type="button">Agendar</button><button id="lembDel" type="button">Remover</button></div></div><div id="msgs" aria-live="polite"><p class="empty">Escolha uma conversa.</p></div>
 <div id="rap"></div><input id="busca" placeholder="🔎 Buscar produto do catálogo para enviar (ex.: astro)" autocomplete="off" aria-label="Buscar produto"><div id="res"></div>
 <div id="aviso"></div>
 <form id="f"><label class="clip" aria-label="Enviar foto"><input id="foto" class="sr" type="file" accept="image/*"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg></label><input id="txt" placeholder="Responder" autocomplete="off" aria-label="Sua resposta"><button>Responder</button></form></div>
@@ -155,20 +174,21 @@ function desenharLista(){
     const b=document.createElement("button");b.setAttribute("aria-current",c.id===cur);
     const w=document.createElement("div");w.innerHTML="<b></b><small></small>";
     w.firstChild.textContent=c.nome||"Cliente";w.lastChild.textContent=(c.situacao?"["+c.situacao+"] ":"")+(c.ultima||"");
+    if(c.lembreteEm){const lm=document.createElement("small");lm.className=c.lembreteEm<=Date.now()?"lemb-due":"lemb-on";lm.textContent="⏰ "+fmtLemb(c.lembreteEm)+(c.lembreteTexto?" · "+c.lembreteTexto:"");w.appendChild(lm)}
     b.appendChild(w);
     if(c.naoLidas&&c.id!==cur){const s=document.createElement("span");s.className="badge";s.textContent=c.naoLidas;b.appendChild(s)}
     b.onclick=()=>abrir(c.id);
     l.appendChild(b);
   });
   if(!chats.length)l.innerHTML='<p class="empty" style="padding:16px">Nenhuma conversa ainda.</p>';
-  if(cur){const cc=chats.find(x=>x.id===cur);if(cc)$("sit").value=cc.situacao||""}
+  if(cur){const cc=chats.find(x=>x.id===cur);if(cc){$("sit").value=cc.situacao||"";$("lembBtn").textContent=cc.lembreteEm?"⏰ "+fmtLemb(cc.lembreteEm):"⏰ Lembrete"}}
   $("count").textContent=aguardando?aguardando+" aguardando resposta":"Tudo respondido";
-  document.title=aguardando?"("+aguardando+") Painel de atendimento":"Painel de atendimento";
+  document.title=(venc?"⏰ ":"")+(aguardando?"("+aguardando+") Painel de atendimento":"Painel de atendimento");
 }
 
 function abrir(id){
   cur=id;
-  $("apagar").style.display="inline-block";$("sit").style.display="inline-block";
+  $("apagar").style.display="inline-block";$("sit").style.display="inline-block";$("lembBtn").style.display="inline-block";$("lemb").hidden=true;$("lembBtn").setAttribute("aria-expanded","false");
   if(offMsgs)offMsgs();
   const c0=chats.find(c=>c.id===id);$("titulo").textContent=c0?(c0.nome||"Cliente"):"";
   setDoc(doc(db,"chats",id),{naoLidas:0},{merge:true});
@@ -209,7 +229,7 @@ function iniciar(){
     if(antes&&novos.some(c=>c.id!==cur&&(c.naoLidas||0)>(antes[c.id]||0)))plim();
     antes={};novos.forEach(c=>{antes[c.id]=c.naoLidas||0});
     chats=novos;
-    desenharLista();
+    desenharLista();verificar();
   },e=>erro("Não consegui ler as conversas: "+e.code+" (confira as regras do Firestore)"));
 }
 
@@ -281,7 +301,7 @@ $("apagar").onclick=async()=>{
   try{
     if(offMsgs){offMsgs();offMsgs=null}
     cur=null;
-    $("titulo").textContent="Nenhuma conversa aberta";$("apagar").style.display="none";$("sit").style.display="none";
+    $("titulo").textContent="Nenhuma conversa aberta";$("apagar").style.display="none";$("sit").style.display="none";$("lembBtn").style.display="none";$("lemb").hidden=true;
     $("msgs").innerHTML='<p class="empty">Escolha uma conversa.</p>';
     const snap=await getDocs(collection(db,"chats",id,"messages"));
     let b=writeBatch(db),n=0;
@@ -306,6 +326,65 @@ let produtos=[];
 fetch(CATALOGO_URL+"produtos.json",{cache:"no-cache"}).then(r=>r.json()).then(j=>{
   produtos=(j.produtos||[]).map(p=>({...p,_w:sem([p.titulo,p.tema,...(p.palavras||[])].join(" ")).split(/[^a-z0-9]+/).filter(Boolean)}));
 }).catch(()=>{});
+
+// ---- lembretes: "preciso voltar nessa cliente" (ficam salvos na conversa, no Firebase) ----
+let venc=0,chaveVenc="";const avisados=new Set();
+const fmtLemb=ms=>{const d=new Date(ms),h=d.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});return d.toDateString()===new Date().toDateString()?h:d.toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit"})+" "+h};
+const paraLocal=ms=>new Date(ms-new Date(ms).getTimezoneOffset()*60000).toISOString().slice(0,16);
+function pedirPermissao(){try{if("Notification" in window&&Notification.permission==="default")Notification.requestPermission()}catch(e){}}
+async function notificar(titulo,corpo,tag){
+  try{
+    if(!("Notification" in window)||Notification.permission!=="granted")return;
+    const reg=navigator.serviceWorker&&await navigator.serviceWorker.getRegistration();
+    if(reg&&reg.showNotification)reg.showNotification(titulo,{body:corpo,tag});
+    else{const n=new Notification(titulo,{body:corpo,tag});n.onclick=()=>{window.focus();n.close()}}
+  }catch(e){}
+}
+function btn(t,fn,cls){const b=document.createElement("button");b.type="button";b.textContent=t;if(cls)b.className=cls;b.onclick=fn;return b}
+const falhou=e=>erro("Não consegui salvar o lembrete: "+(e.code||e.message));
+function limpar(id){return setDoc(doc(db,"chats",id),{lembreteEm:null,lembreteTexto:""},{merge:true}).catch(falhou)}
+function agendar(id,ms,texto){pedirPermissao();return setDoc(doc(db,"chats",id),{lembreteEm:ms,lembreteTexto:texto||""},{merge:true}).catch(falhou)}
+function desenharAlertas(v){
+  venc=v.length;
+  const box=$("alertas");box.textContent="";box.classList.toggle("on",v.length>0);
+  v.forEach(c=>{
+    const row=document.createElement("div");row.className="a";
+    const sp=document.createElement("span"),b=document.createElement("b");b.textContent=c.nome||"Cliente";
+    sp.append("⏰ Voltar para ",b,c.lembreteTexto?": "+c.lembreteTexto:"");
+    row.append(sp,
+      btn("Abrir conversa",()=>abrir(c.id)),
+      btn("+15 min",()=>agendar(c.id,Date.now()+15*60000,c.lembreteTexto),"sec"),
+      btn("Feito",()=>limpar(c.id),"sec"));
+    box.appendChild(row);
+  });
+}
+function verificar(){
+  const agora=Date.now(),v=chats.filter(c=>c.lembreteEm&&c.lembreteEm<=agora);
+  v.forEach(c=>{
+    const k=c.id+":"+c.lembreteEm;if(avisados.has(k))return;avisados.add(k);
+    plim();setTimeout(plim,700);setTimeout(plim,1400);
+    notificar("⏰ Voltar para "+(c.nome||"Cliente"),c.lembreteTexto||"Você ficou de retornar para esta cliente.",c.id);
+  });
+  const chave=v.map(c=>c.id+":"+c.lembreteEm).join("|");
+  if(chave!==chaveVenc){chaveVenc=chave;desenharAlertas(v);desenharLista()}
+}
+setInterval(verificar,15000);
+document.addEventListener("visibilitychange",()=>{if(!document.hidden)verificar()});
+const AMANHA=()=>{const d=new Date();d.setDate(d.getDate()+1);d.setHours(9,0,0,0);return d.getTime()};
+[["+15 min",()=>Date.now()+15*60000],["+30 min",()=>Date.now()+30*60000],["+1 h",()=>Date.now()+60*60000],["+2 h",()=>Date.now()+120*60000],["Amanhã 9h",AMANHA]].forEach(([t,f])=>{
+  $("lembRap").appendChild(btn(t,()=>{if(!cur)return;erro("");agendar(cur,f(),$("lembTexto").value.trim());$("lemb").hidden=true;$("lembBtn").setAttribute("aria-expanded","false")}));
+});
+$("lembBtn").onclick=()=>{
+  const abre=$("lemb").hidden;$("lemb").hidden=!abre;$("lembBtn").setAttribute("aria-expanded",String(abre));
+  if(abre){const c=chats.find(x=>x.id===cur)||{};$("lembTexto").value=c.lembreteTexto||"";$("lembQuando").value=paraLocal(c.lembreteEm||Date.now()+30*60000);$("lembDel").style.display=c.lembreteEm?"":"none"}
+};
+$("lembOk").onclick=()=>{
+  const ms=new Date($("lembQuando").value).getTime();
+  if(!cur||!ms){erro("Escolha a data e a hora do lembrete.");return}
+  erro("");agendar(cur,ms,$("lembTexto").value.trim());$("lemb").hidden=true;$("lembBtn").setAttribute("aria-expanded","false");
+};
+$("lembDel").onclick=()=>{if(cur)limpar(cur);$("lemb").hidden=true;$("lembBtn").setAttribute("aria-expanded","false")};
+if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
 
 // situação da conversa
 const sit=$("sit");
