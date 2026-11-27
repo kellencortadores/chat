@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Demo: app de chat com as clientes</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap">
+<style>
+:root{--bg:#F6F2FA;--surf:#FFFFFF;--ink:#2A1F2D;--mute:#6D6174;--line:#E4DCEC;--berry:#6B2D5C;--berry-ink:#FFFFFF;--mint:#CDEBDD;--butter:#FFE9A8;--mine:#6B2D5C;--mine-ink:#fff;--theirs:#EFE8F5;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#1B1420;--surf:#261C2C;--ink:#F3ECF7;--mute:#B2A5BA;--line:#3A2D42;--berry:#E7A6D6;--berry-ink:#2A1F2D;--mint:#24493A;--butter:#5B4B1B;--mine:#E7A6D6;--mine-ink:#2A1F2D;--theirs:#34273C}}
+:root[data-theme="dark"]{--bg:#1B1420;--surf:#261C2C;--ink:#F3ECF7;--mute:#B2A5BA;--line:#3A2D42;--berry:#E7A6D6;--berry-ink:#2A1F2D;--mint:#24493A;--butter:#5B4B1B;--mine:#E7A6D6;--mine-ink:#2A1F2D;--theirs:#34273C}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:"Bricolage Grotesque",system-ui,sans-serif;line-height:1.45}
+header{max-width:1000px;margin:0 auto;padding:20px 16px 4px}
+h1{font-size:1.5rem;margin:0 0 4px;font-weight:800}
+header p{margin:0;color:var(--mute);max-width:62ch}
+main{max-width:1000px;margin:0 auto;padding:16px;display:grid;gap:20px;grid-template-columns:340px 1fr;align-items:start}
+@media(max-width:820px){main{grid-template-columns:1fr}.phone{margin:0 auto}}
+h2{font-size:.95rem;margin:0 0 8px;color:var(--mute);font-weight:600}
+.phone{width:100%;max-width:340px;height:560px;background:var(--surf);border:2px solid var(--line);border-radius:28px;display:flex;flex-direction:column;overflow:hidden}
+.bar{background:var(--berry);color:var(--berry-ink);padding:14px 16px;display:flex;align-items:center;gap:10px}
+.logo{width:34px;height:34px;border-radius:50%;background:var(--butter);color:#6B2D5C;display:grid;place-items:center;font-weight:800}
+.bar b{display:block;line-height:1.1}.bar small{opacity:.85}
+.tabs{display:flex;border-bottom:1px solid var(--line)}
+.tabs button{flex:1;padding:10px;border:0;background:none;color:var(--mute);font:inherit;font-weight:600;cursor:pointer;border-bottom:3px solid transparent}
+.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--berry)}
+.pane{flex:1;overflow:auto;padding:12px;display:none}
+.pane.on{display:flex;flex-direction:column}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.tile{border:1px solid var(--line);border-radius:14px;padding:10px;text-align:center;background:var(--bg)}
+.cookie{width:64px;height:64px;border-radius:50%;margin:0 auto 6px;border:5px solid rgba(255,255,255,.7);box-shadow:inset 0 0 0 3px rgba(0,0,0,.08)}
+.tile b{display:block;font-size:.9rem}
+.tile button{margin-top:6px;border:1px solid var(--berry);background:none;color:var(--berry);border-radius:999px;padding:4px 10px;font:inherit;font-size:.8rem;cursor:pointer}
+.msgs{flex:1;overflow:auto;display:flex;flex-direction:column;gap:6px;padding:2px}
+.m{max-width:80%;padding:8px 11px;border-radius:16px;font-size:.92rem;word-wrap:break-word}
+.m small{display:block;opacity:.65;font-size:.7rem;margin-top:2px}
+.m.me{align-self:flex-end;background:var(--mine);color:var(--mine-ink);border-bottom-right-radius:4px}
+.m.other{align-self:flex-start;background:var(--theirs);border-bottom-left-radius:4px}
+.empty{color:var(--mute);text-align:center;margin:auto;font-size:.9rem}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
+.chips button{border:1px solid var(--line);background:var(--surf);color:var(--ink);border-radius:999px;padding:5px 10px;font:inherit;font-size:.8rem;cursor:pointer}
+.send{display:flex;gap:6px;margin-top:6px}
+.send input{flex:1;min-width:0;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:999px;padding:10px 14px;font:inherit}
+.send button,.reply button{border:0;background:var(--berry);color:var(--berry-ink);border-radius:999px;padding:0 16px;font:inherit;font-weight:600;cursor:pointer}
+button:focus-visible,input:focus-visible{outline:3px solid var(--butter);outline-offset:2px}
+.desk{background:var(--surf);border:2px solid var(--line);border-radius:18px;overflow:hidden}
+.deskbar{padding:12px 16px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.deskbar b{font-size:1.05rem}.deskbar span{color:var(--mute);font-size:.85rem}
+.cols{display:grid;grid-template-columns:200px 1fr;min-height:420px}
+@media(max-width:560px){.cols{grid-template-columns:1fr}}
+.list{border-right:1px solid var(--line)}
+@media(max-width:560px){.list{border-right:0;border-bottom:1px solid var(--line)}}
+.list button{display:flex;width:100%;align-items:center;justify-content:space-between;gap:6px;text-align:left;padding:12px 14px;border:0;border-bottom:1px solid var(--line);background:none;color:var(--ink);font:inherit;cursor:pointer}
+.list button[aria-current="true"]{background:var(--theirs)}
+.list small{display:block;color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px}
+.badge{background:var(--berry);color:var(--berry-ink);border-radius:999px;min-width:22px;text-align:center;font-size:.75rem;padding:1px 6px}
+.conv{display:flex;flex-direction:column;padding:12px;min-height:320px}
+.reply{display:flex;gap:6px;margin-top:8px}
+.reply input{flex:1;min-width:0;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:10px;padding:10px 12px;font:inherit}
+.reply button{border-radius:10px;padding:10px 16px}
+.log{margin:12px;padding:10px 12px;border-radius:12px;background:var(--mint);font-size:.82rem}
+.log code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.78rem;word-break:break-all}
+.note{max-width:1000px;margin:0 auto;padding:0 16px 24px;color:var(--mute);font-size:.88rem}
+</style>
+</head>
+<body>
+<header>
+<h1>Como ficaria o app de chat com as clientes</h1>
+<p>À esquerda, o celular da cliente Mariana. À direita, o seu painel no navegador do trabalho. Escreva de um lado e veja chegar no outro.</p>
+</header>
+<main>
+<section aria-label="Celular da cliente">
+<h2>Celular da cliente</h2>
+<div class="phone">
+<div class="bar"><div class="logo">K</div><div><b>Kellen Cortadores</b><small>Responde em poucos minutos</small></div></div>
+<div class="tabs" role="tablist">
+<button role="tab" id="t1" aria-selected="true" data-tab="cat">Catálogo</button>
+<button role="tab" id="t2" aria-selected="false" data-tab="chat">Conversa <span id="phoneBadge" class="badge" hidden></span></button>
+</div>
+<div class="pane on" id="cat"><div class="grid" id="grid"></div></div>
+<div class="pane" id="chat">
+<div class="msgs" id="phoneMsgs" aria-live="polite"></div>
+<div class="chips" id="chips"></div>
+<div class="send"><input id="phoneIn" placeholder="Escreva sua mensagem" aria-label="Mensagem da cliente"><button id="phoneSend">Enviar</button></div>
+</div>
+</div>
+</section>
+<section aria-label="Painel de atendimento">
+<h2>Seu painel de atendimento</h2>
+<div class="desk">
+<div class="deskbar"><b>Conversas</b><span id="count"></span></div>
+<div class="cols">
+<div class="list" id="list"></div>
+<div class="conv"><div class="msgs" id="deskMsgs" aria-live="polite"></div>
+<div class="reply"><input id="deskIn" placeholder="Responder" aria-label="Sua resposta"><button id="deskSend">Responder</button></div></div>
+</div>
+<div class="log" id="log">No Firebase, cada mensagem enviada vira um registro novo. Aqui você vai ver qual.</div>
+</div>
+</section>
+</main>
+<p class="note">Esta é uma simulação: as mensagens ficam só nesta página. Na versão real, o Firebase guarda as conversas e entrega cada mensagem para o outro lado em tempo real.</p>
+<script>
+var themes=[["Natal","#E8A0A0"],["Páscoa","#CDEBDD"],["Unicórnio","#D9C6F0"],["Festa Junina","#FFE9A8"],["Aniversário","#BFE0F5"],["Dia das Mães","#F5C6DA"]];
+var names={mariana:"Mariana",joana:"Joana"};
+var chats={mariana:[{f:"k",t:"Oi, Mariana! Bem-vinda ao app da Kellen Cortadores. Pode pedir por aqui.",h:"09:00"}],
+joana:[{f:"c",t:"Boa tarde! Vocês fazem cortador de unicórnio com 8 cm?",h:"14:02"}]};
+var unread={mariana:0,joana:1},unreadPhone=0,cur="joana",tab="cat";
+function $(i){return document.getElementById(i)}
+function now(){return new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})}
+function log(txt){$("log").innerHTML="Gravado no Firebase: <code>"+txt+"</code>"}
+function bubble(m,mineFrom){var d=document.createElement("div");d.className="m "+(m.f===mineFrom?"me":"other");d.textContent=m.t;var s=document.createElement("small");s.textContent=m.h;d.appendChild(s);return d}
+function fill(el,id,mineFrom){el.innerHTML="";var a=chats[id];if(!a.length){el.innerHTML='<p class="empty">Nenhuma mensagem ainda.</p>'}a.forEach(function(m){el.appendChild(bubble(m,mineFrom))});el.scrollTop=el.scrollHeight}
+function renderPhone(){fill($("phoneMsgs"),"mariana","c");var b=$("phoneBadge");b.hidden=!(unreadPhone&&tab!=="chat");b.textContent=unreadPhone}
+function renderDesk(){
+var l=$("list");l.innerHTML="";var tot=0;
+Object.keys(names).forEach(function(id){var a=chats[id],last=a[a.length-1];tot+=unread[id]?1:0;
+var b=document.createElement("button");b.setAttribute("aria-current",id===cur);
+var w=document.createElement("div");w.innerHTML="<b></b><small></small>";w.firstChild.textContent=names[id];w.lastChild.textContent=last?last.t:"";b.appendChild(w);
+if(unread[id]){var s=document.createElement("span");s.className="badge";s.textContent=unread[id];b.appendChild(s)}
+b.onclick=function(){cur=id;unread[id]=0;renderAll()};l.appendChild(b)});
+$("count").textContent=tot?tot+" aguardando resposta":"Tudo respondido";
+fill($("deskMsgs"),cur,"k")}
+function renderAll(){renderPhone();renderDesk()}
+function showTab(t){tab=t;["cat","chat"].forEach(function(x){$(x).classList.toggle("on",x===t)});
+document.querySelectorAll(".tabs button").forEach(function(b){b.setAttribute("aria-selected",b.dataset.tab===t)});
+if(t==="chat"){unreadPhone=0;renderAll();$("phoneIn").focus()}else renderPhone()}
+document.querySelectorAll(".tabs button").forEach(function(b){b.onclick=function(){showTab(b.dataset.tab)}});
+themes.forEach(function(t){var d=document.createElement("div");d.className="tile";
+d.innerHTML='<div class="cookie"></div><b></b><button>Perguntar</button>';
+d.firstChild.style.background=t[1];d.children[1].textContent=t[0];
+d.lastChild.onclick=function(){showTab("chat");$("phoneIn").value="Quero ver os cortadores do tema "+t[0]+".";$("phoneIn").focus()};$("grid").appendChild(d)});
+["Qual o prazo de entrega?","Aceitam pedido personalizado?"].forEach(function(q){var b=document.createElement("button");b.textContent=q;b.onclick=function(){$("phoneIn").value=q;sendPhone()};$("chips").appendChild(b)});
+function sendPhone(){var v=$("phoneIn").value.trim();if(!v)return;var h=now();
+chats.mariana.push({f:"c",t:v,h:h});
+if(cur!=="mariana")unread.mariana=1;
+log("chats/mariana/messages → { de: &quot;cliente&quot;, texto: &quot;"+v.replace(/</g,"&lt;")+"&quot;, hora: &quot;"+h+"&quot; }");
+$("phoneIn").value="";renderAll()}
+function sendDesk(){var v=$("deskIn").value.trim();if(!v)return;var h=now();
+chats[cur].push({f:"k",t:v,h:h});
+log("chats/"+cur+"/messages → { de: &quot;loja&quot;, texto: &quot;"+v.replace(/</g,"&lt;")+"&quot;, hora: &quot;"+h+"&quot; }"+(cur==="mariana"?" + aviso push para o celular da Mariana":""));
+if(cur==="mariana"&&tab!=="chat")unreadPhone=1;
+$("deskIn").value="";renderAll()}
+$("phoneSend").onclick=sendPhone;$("deskSend").onclick=sendDesk;
+$("phoneIn").onkeydown=function(e){if(e.key==="Enter")sendPhone()};
+$("deskIn").onkeydown=function(e){if(e.key==="Enter")sendDesk()};
+renderAll();
+</script>
+</body>
+</html>
