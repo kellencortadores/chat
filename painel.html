@@ -82,7 +82,7 @@ button.mic{background:none;color:var(--berry);padding:0}
 #res img{width:36px;height:36px;object-fit:cover;border-radius:6px}
 #sit{display:none;font:inherit;font-size:.8rem;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:8px;padding:3px 6px}
 .m a:not(.pc){color:inherit;text-decoration:underline;word-break:break-all}
-#lembBtn{display:none;background:none;color:var(--berry);border:1px solid var(--line);padding:4px 10px;font-weight:500;font-size:.85rem}
+#renBtn,#lembBtn{display:none;background:none;color:var(--berry);border:1px solid var(--line);padding:4px 10px;font-weight:500;font-size:.85rem}
 #lemb{margin:0 0 8px;padding:10px;border:1px solid var(--line);border-radius:12px;background:var(--bg);display:flex;flex-direction:column;gap:8px}
 #lemb[hidden]{display:none}
 #lemb .ch,#lemb .lin{display:flex;flex-wrap:wrap;gap:6px}
@@ -111,7 +111,7 @@ button.mic{background:none;color:var(--berry);padding:0}
 <div id="alertas" role="alert"></div>
 <div class="cols">
 <div id="list"></div>
-<div class="conv"><div class="titulo"><span id="titulo">Nenhuma conversa aberta</span><select id="sit" aria-label="Situação da conversa"></select><button id="lembBtn" type="button" aria-expanded="false" aria-controls="lemb">⏰ Lembrete</button><button id="apagar" type="button">🗑 Apagar</button></div>
+<div class="conv"><div class="titulo"><span id="titulo">Nenhuma conversa aberta</span><select id="sit" aria-label="Situação da conversa"></select><button id="renBtn" type="button">✏️ Renomear</button><button id="lembBtn" type="button" aria-expanded="false" aria-controls="lemb">⏰ Lembrete</button><button id="apagar" type="button">🗑 Apagar</button></div>
 <div id="lemb" hidden><input id="lembTexto" placeholder="O que preciso devolver a ela? (opcional)" maxlength="120" autocomplete="off" aria-label="Anotação do lembrete"><div class="ch" id="lembRap"></div><div class="lin"><input id="lembQuando" type="datetime-local" aria-label="Data e hora do lembrete"><button id="lembOk" type="button">Agendar</button><button id="lembDel" type="button">Remover</button></div></div><div id="msgs" aria-live="polite"><p class="empty">Escolha uma conversa.</p></div>
 <div id="rap"></div><input id="busca" placeholder="🔎 Buscar produto do catálogo para enviar (ex.: astro)" autocomplete="off" aria-label="Buscar produto"><div id="res"></div>
 <div id="aviso"></div>
@@ -185,7 +185,7 @@ function botaoCopiar(texto,id){
   const b=document.createElement("button");b.type="button";b.className="copiar";b.textContent="📋 Copiar pedido";
   b.onclick=async()=>{
     let t=texto;
-    if(!/^Cliente:/m.test(t)){const c=chats.find(x=>x.id===id),l=t.split("\n");l.splice(1,0,"Cliente: "+((c&&c.nome)||"Cliente"));t=l.join("\n")}
+    {const c=chats.find(x=>x.id===id),l=t.split("\n").filter((x,i)=>i===0||!/^Cliente:/.test(x));l.splice(1,0,"Cliente: "+((c&&c.nome)||"Cliente"));t=l.join("\n")}
     try{await navigator.clipboard.writeText(t);b.textContent="✔ Copiado"}
     catch(e){erro("Não consegui copiar. Selecione o texto e copie.")}
     setTimeout(()=>{b.textContent="📋 Copiar pedido"},2000);
@@ -302,7 +302,7 @@ function desenharLista(){
 function abrir(id){
   if(id!==cur)gravador.descartar();
   cur=id;
-  $("apagar").style.display="inline-block";$("sit").style.display="inline-block";$("lembBtn").style.display="inline-block";$("lemb").hidden=true;$("lembBtn").setAttribute("aria-expanded","false");
+  $("apagar").style.display="inline-block";$("sit").style.display="inline-block";$("renBtn").style.display="inline-block";$("lembBtn").style.display="inline-block";$("lemb").hidden=true;$("lembBtn").setAttribute("aria-expanded","false");
   if(offMsgs)offMsgs();
   const c0=chats.find(c=>c.id===id);$("titulo").textContent=c0?(c0.nome||"Cliente"):"";
   setDoc(doc(db,"chats",id),{naoLidas:0},{merge:true});
@@ -341,7 +341,7 @@ function iniciar(){
   const q=query(collection(db,"chats"),orderBy("atualizado","desc"),limit(50));
   let antes=null;
   offList=onSnapshot(q,snap=>{
-    const novos=snap.docs.map(d=>({id:d.id,...d.data()}));
+    const novos=snap.docs.map(d=>{const x=d.data();return {id:d.id,...x,nome:x.nomeEditado||x.nomeCliente||x.nome}});
     // outras conversas: toca quando o contador de não lidas sobe
     if(antes&&novos.some(c=>c.id!==cur&&(c.naoLidas||0)>(antes[c.id]||0)))plim();
     antes={};novos.forEach(c=>{antes[c.id]=c.naoLidas||0});
@@ -493,6 +493,17 @@ $("f").onsubmit=async e=>{
   try{await b.commit()}catch(err){erro("Não consegui enviar: "+err.code)}
 };
 
+// renomear: corrige o nome da cliente (vale no painel e no "Copiar pedido"; a cliente não precisa fazer nada)
+$("renBtn").onclick=async()=>{
+  if(!cur)return;
+  const id=cur,c=chats.find(x=>x.id===id),atual=(c&&c.nome)||"";
+  const novo=nomeSeguro(prompt("Nome completo da cliente:",atual)||"");
+  if(!novo||novo===atual)return;
+  erro("");
+  try{await setDoc(doc(db,"chats",id),{nomeEditado:novo},{merge:true});$("titulo").textContent=novo}
+  catch(err){erro("Não consegui renomear: "+(err.code||err.message))}
+};
+
 // apaga a conversa inteira: primeiro as mensagens, depois o documento da conversa
 $("apagar").onclick=async()=>{
   if(!cur)return;
@@ -501,7 +512,7 @@ $("apagar").onclick=async()=>{
   try{
     if(offMsgs){offMsgs();offMsgs=null}
     cur=null;gravador.descartar();
-    $("titulo").textContent="Nenhuma conversa aberta";$("apagar").style.display="none";$("sit").style.display="none";$("lembBtn").style.display="none";$("lemb").hidden=true;
+    $("titulo").textContent="Nenhuma conversa aberta";$("apagar").style.display="none";$("sit").style.display="none";$("renBtn").style.display="none";$("lembBtn").style.display="none";$("lemb").hidden=true;
     $("msgs").innerHTML='<p class="empty">Escolha uma conversa.</p>';
     const snap=await getDocs(collection(db,"chats",id,"messages"));
     let b=writeBatch(db),n=0;
