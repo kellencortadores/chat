@@ -50,6 +50,34 @@ button.mic{background:none;color:var(--berry);padding:0}
 #nome{padding:24px 16px;display:none;flex-direction:column;gap:10px}
 #nome p{margin:0;font-weight:600}
 #nome button{padding:11px 18px}
+#salvar{flex:1;overflow:auto;padding:18px 16px;display:flex;flex-direction:column;gap:12px}
+#salvar[hidden]{display:none}
+#salvar:not([hidden])~#dicaAudio{display:none}
+#salvar h2{margin:0;font-size:1.15rem;line-height:1.25}
+#salvar p{margin:0;color:var(--mute);font-size:.92rem}
+#salvar .abas{display:flex;gap:6px}
+#salvar .abas button{flex:1;padding:10px;background:none;color:var(--berry);border:1px solid var(--line)}
+#salvar .abas button[aria-selected=true]{background:var(--berry);color:#fff}
+@media(prefers-color-scheme:dark){#salvar .abas button[aria-selected=true]{color:#2A1F2D}}
+#salvar .passos{display:flex;flex-direction:column;gap:8px}
+#salvar .passos[hidden]{display:none}
+.passo{display:flex;gap:10px;align-items:center;border:1px solid var(--line);border-radius:14px;padding:8px 10px 8px 8px;background:var(--bg);font-size:.92rem}
+.passo svg{width:46%;max-width:170px;flex:none;height:auto}
+.passo .n{display:inline-grid;place-items:center;width:22px;height:22px;margin-right:6px;border-radius:50%;background:var(--berry);color:#fff;font-size:.8rem;font-weight:700}
+@media(prefers-color-scheme:dark){.passo .n{color:#2A1F2D}}
+#salvar .fim{font-size:.88rem}
+#salvar .btns{display:flex;flex-direction:column;gap:8px}
+#salvar .btns button{padding:13px 18px}
+#salvar .btns button.sec{background:none;color:var(--berry);border:1px solid var(--line)}
+.ph{fill:var(--surf);stroke:var(--line);stroke-width:1.5}
+.ln{stroke:var(--line);stroke-width:1.5;fill:none}
+.bar{fill:var(--line)}
+.ic{stroke:var(--mute);stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.t{fill:var(--ink);font-family:system-ui,-apple-system,sans-serif}
+.tm{fill:var(--mute)}
+.hl{fill:none;stroke:var(--berry);stroke-width:3;animation:pulso 1.4s ease-in-out infinite}
+@keyframes pulso{50%{opacity:.35}}
+@media(prefers-reduced-motion:reduce){.hl{animation:none}}
 #erro{color:#B3261E;padding:12px;display:none}
 #aviso{color:var(--mute);font-size:.85rem;padding:4px 12px;display:none}
 #zoom{position:fixed;inset:0;background:rgba(0,0,0,.88);display:none;align-items:center;justify-content:center;z-index:9;padding:16px}
@@ -84,6 +112,15 @@ button.mic{background:none;color:var(--berry);padding:0}
 <header><img class="logo" src="logo.png" alt="Logomarca Kellen Cortadores" width="44" height="44"><div><b>Kellen Cortadores</b><small>Responde em poucos minutos</small></div></header>
 <div id="erro"></div>
 <div id="nome"><p>Como você se chama?</p><input id="nomeIn" placeholder="Seu nome" autocomplete="given-name"><button id="nomeOk" type="button">Começar conversa</button></div>
+<div id="salvar" hidden>
+<h2>Salve este chat na tela inicial 💜</h2>
+<p>Assim você me encontra de novo com 1 toque. Faça agora, antes de começar a conversa.</p>
+<div class="abas" role="tablist"><button type="button" role="tab" id="abaIos" aria-selected="false">iPhone</button><button type="button" role="tab" id="abaAnd" aria-selected="false">Android</button></div>
+<div class="passos" id="passosIos"><div class="passo"><svg viewBox="0 0 200 110" aria-hidden="true" focusable="false"><rect class="ph" x="30" y="4" width="140" height="102" rx="12"/><rect class="bar" x="44" y="16" width="80" height="6" rx="3"/><rect class="bar" x="44" y="30" width="108" height="6" rx="3"/><rect class="bar" x="44" y="44" width="60" height="6" rx="3"/><line class="ln" x1="30" y1="78" x2="170" y2="78"/><path class="ic" d="M56 86l-6 7 6 7"/><path class="ic" d="M76 86l6 7-6 7"/><path class="ic" d="M94 92h-3v10h18V92h-3M100 98V84M96 88l4-4 4 4"/><path class="ic" d="M120 87h9v13h-9zM129 87h9v13h-9z"/><rect class="ic" x="148" y="88" width="12" height="12" rx="2"/><circle class="hl" cx="100" cy="93" r="14"/></svg><div><span class="n">1</span>Toque em <b>compartilhar</b> (o quadradinho com seta, na parte de baixo)</div></div><div class="passo"><svg viewBox="0 0 200 110" aria-hidden="true" focusable="false"><rect class="ph" x="30" y="6" width="140" height="100" rx="12"/><text class="t" font-size="7" x="42" y="31">Copiar</text><line class="ln" x1="38" y1="42" x2="162" y2="42"/><text class="t" font-size="7" x="42" y="57">Adicionar aos Favoritos</text><text class="t" font-size="7" x="42" y="83" font-weight="700">Adicionar à Tela de Início</text><rect class="ic" x="148" y="75" width="12" height="12" rx="3"/><path class="ic" d="M154 78v6M151 81h6"/><rect class="hl" x="36" y="68" width="128" height="26" rx="7"/></svg><div><span class="n">2</span>Role e escolha <b>“Adicionar à Tela de Início”</b></div></div><div class="passo"><svg viewBox="0 0 200 110" aria-hidden="true" focusable="false"><rect class="ph" x="30" y="6" width="140" height="100" rx="12"/><text class="t tm" font-size="7" x="40" y="25">Cancelar</text><text class="t" font-size="7" x="127" y="25" font-weight="700">Adicionar</text><rect class="hl" x="120" y="14" width="44" height="16" rx="8"/><line class="ln" x1="38" y1="36" x2="162" y2="36"/><rect x="42" y="46" width="26" height="26" rx="6" style="fill:var(--berry)"/><rect class="ph" x="76" y="46" width="84" height="26" rx="6"/><text class="t" font-size="8" x="84" y="62">Kellen</text><rect class="bar" x="42" y="84" width="110" height="5" rx="2.5"/><rect class="bar" x="42" y="94" width="70" height="5" rx="2.5"/></svg><div><span class="n">3</span>Toque em <b>“Adicionar”</b>, no canto de cima</div></div></div>
+<div class="passos" id="passosAnd"><div class="passo"><svg viewBox="0 0 200 110" aria-hidden="true" focusable="false"><rect class="ph" x="30" y="4" width="140" height="102" rx="12"/><line class="ln" x1="30" y1="30" x2="170" y2="30"/><rect class="ph" x="42" y="10" width="92" height="14" rx="7"/><text class="t tm" font-size="6.5" x="52" y="20">kellencortadores</text><circle cx="152" cy="11" r="2" style="fill:var(--mute)"/><circle cx="152" cy="17" r="2" style="fill:var(--mute)"/><circle cx="152" cy="23" r="2" style="fill:var(--mute)"/><circle class="hl" cx="152" cy="17" r="12"/><rect class="bar" x="44" y="44" width="80" height="6" rx="3"/><rect class="bar" x="44" y="58" width="108" height="6" rx="3"/><rect class="bar" x="44" y="72" width="60" height="6" rx="3"/></svg><div><span class="n">1</span>Toque nos <b>3 pontinhos</b>, no canto de cima</div></div><div class="passo"><svg viewBox="0 0 200 110" aria-hidden="true" focusable="false"><rect class="ph" x="30" y="4" width="140" height="102" rx="12"/><rect class="ph" x="66" y="12" width="98" height="88" rx="8"/><text class="t" font-size="6.5" x="74" y="29">Nova guia</text><text class="t" font-size="6.5" x="74" y="45">Histórico</text><text class="t" font-size="6.5" x="74" y="63" font-weight="700">Adicionar à tela inicial</text><text class="t" font-size="6.5" x="74" y="79">Compartilhar…</text><text class="t" font-size="6.5" x="74" y="94">Configurações</text><rect class="hl" x="69" y="51" width="92" height="17" rx="6"/></svg><div><span class="n">2</span>Escolha <b>“Adicionar à tela inicial”</b></div></div><div class="passo"><svg viewBox="0 0 200 110" aria-hidden="true" focusable="false"><rect class="ph" x="30" y="4" width="140" height="102" rx="12"/><rect class="ph" x="42" y="18" width="116" height="74" rx="10"/><text class="t" font-size="7.5" x="50" y="34" font-weight="700">Adicionar à tela inicial</text><rect class="ph" x="50" y="42" width="100" height="14" rx="4"/><text class="t" font-size="7" x="56" y="52">Kellen</text><text class="t tm" font-size="7" x="62" y="80">Cancelar</text><text class="t" font-size="7" x="118" y="80" font-weight="700">Adicionar</text><rect class="hl" x="112" y="69" width="40" height="15" rx="7"/></svg><div><span class="n">3</span>Toque em <b>“Adicionar”</b></div></div></div>
+<p class="fim">Depois é só abrir o ícone <b>Kellen</b> e me mandar mensagem ou foto! Não achou a opção? Abra este link direto no Safari (iPhone) ou no Chrome (Android).</p>
+<div class="btns"><button id="salvarOk" type="button">Já salvei, ir para a conversa</button><button id="salvarDepois" type="button" class="sec">Fazer depois</button></div>
+</div>
 <div id="msgs" aria-live="polite"></div>
 <div id="aviso"></div>
 <div id="pedido" role="region" aria-label="Pedido do catálogo"><b>Confira seu pedido e toque em enviar</b><div id="pedidoTxt"></div><div class="acoes"><button id="pedidoOk" type="button">Enviar pedido</button><button id="pedidoNao" type="button">Cancelar</button></div></div>
@@ -271,7 +308,7 @@ function escutar(){
 }
 
 function iniciar(){
-  $("nome").style.display="none";$("f").style.display="flex";$("msgs").style.display="flex";
+  $("nome").style.display="none";$("salvar").hidden=true;$("f").style.display="flex";$("msgs").style.display="flex";
   escutar();
   mostrarPedido();
 }
@@ -279,8 +316,26 @@ function iniciar(){
 $("nomeOk").onclick=()=>{
   const v=$("nomeIn").value.trim();if(!v)return;
   nome=v;try{localStorage.setItem("nome",v)}catch(e){}
+  if(mostrarGuia())return;
   iniciar();
 };
+
+// primeiro acesso: ensina a salvar o chat na tela inicial (só no celular e só fora do app já instalado)
+const ehIOS=/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
+const ehAndroid=/Android/i.test(navigator.userAgent);
+function emApp(){try{return matchMedia("(display-mode: standalone)").matches||navigator.standalone===true}catch(e){return false}}
+function aba(os){
+  const ios=os==="ios";
+  $("abaIos").setAttribute("aria-selected",String(ios));$("abaAnd").setAttribute("aria-selected",String(!ios));
+  $("passosIos").hidden=!ios;$("passosAnd").hidden=ios;
+}
+function mostrarGuia(){
+  if(emApp()||!(ehIOS||ehAndroid))return false;
+  $("nome").style.display="none";$("salvar").hidden=false;aba(ehIOS?"ios":"and");
+  return true;
+}
+$("abaIos").onclick=()=>aba("ios");$("abaAnd").onclick=()=>aba("and");
+$("salvarOk").onclick=$("salvarDepois").onclick=()=>iniciar();
 
 $("f").onsubmit=async e=>{
   e.preventDefault();
