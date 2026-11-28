@@ -321,6 +321,7 @@ $("nomeOk").onclick=()=>{
 };
 
 // primeiro acesso: ensina a salvar o chat na tela inicial (só no celular e só fora do app já instalado)
+const forcarGuia=/[?&]guia=1\b/.test(location.search); // teste: abra cliente.html?guia=1 em qualquer aparelho
 const ehIOS=/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
 const ehAndroid=/Android/i.test(navigator.userAgent);
 function emApp(){try{return matchMedia("(display-mode: standalone)").matches||navigator.standalone===true}catch(e){return false}}
@@ -330,7 +331,7 @@ function aba(os){
   $("passosIos").hidden=!ios;$("passosAnd").hidden=ios;
 }
 function mostrarGuia(){
-  if(emApp()||!(ehIOS||ehAndroid))return false;
+  if(!forcarGuia&&(emApp()||!(ehIOS||ehAndroid)))return false;
   $("nome").style.display="none";$("salvar").hidden=false;aba(ehIOS?"ios":"and");
   return true;
 }
@@ -514,7 +515,7 @@ lerPedido();
 onAuthStateChanged(auth,u=>{
   if(!u)return;
   uid=u.uid;
-  if(nome)iniciar();
+  if(nome&&!forcarGuia)iniciar();
   else{if(nomeCatalogo)$("nomeIn").value=nomeCatalogo;$("nome").style.display="flex";$("f").style.display="none";$("msgs").style.display="none"}
 });
 signInAnonymously(auth).catch(e=>erro("Falha ao entrar: "+e.code));
