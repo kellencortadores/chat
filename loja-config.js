@@ -7,7 +7,25 @@ export const RESPOSTAS = [
   ["Já te respondo", "Oi! Já te respondo, só um instante 😊"],
   ["Pix", "Segue a chave Pix: 21825781885"],
   ["Prazo", "O prazo de produção é de (X) dias úteis após a confirmação do pagamento."],
-  ["Retirada", "Retirada na R. Haiti, 331, Apto 83B, Jardim América, próximo ao Shopping Jardim Oriente. Google Maps: https://maps.app.goo.gl/PZDV84XhJwnnshGd9"]
+  ["Retirada", "Retirada na R. Haiti, 331, Apto 83B, Jardim América, próximo ao Shopping Jardim Oriente. Google Maps: https://maps.app.goo.gl/PZDV84XhJwnnshGd9"],
+  ["Horários retirada", `📦 Horários Disponíveis para Retirada
+━━━━━━━━━━━━━━━━━━━━━━━
+🗓 Segunda a Sexta
+━━━━━━━━━━━━━━━━━━━━━━━
+🕘 Antes das 09:00
+🕧 12:40 às 13:30 (horário de almoço)
+🌆 Após as 18:00
+━━━━━━━━━━━━━━━━━━━━━━━
+📞 Fale comigo para combinar o melhor horário
+━━━━━━━━━━━━━━━━━━━━━━━`],
+  ["Nome completo", `🌟📁 Organização de Pedidos 📁🌟
+👋 Oi, eu sou Leandro!
+✨ Para organizar melhor os pedidos e evitar confusão entre clientes com o mesmo nome, estou criando uma pasta com nome e sobrenome de cada pessoa.
+📝 Você poderia me enviar o seu completo? Assim seu pedido fica certinho e fácil de localizar! 😊💼`],
+  ["Envio", `Caso queira confirmar a compra precisarei das seguintes informações:
+👉 Nome completo
+👉 Endereço completo com CEP (Para calcular seu frete)
+👉 CPF (para cadastrar no sistema de envio que uso)`]
 ];
 
 // Situação de cada conversa (menu no painel)

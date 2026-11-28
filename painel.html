@@ -19,7 +19,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple
 .wrap{max-width:1000px;margin:0 auto;padding:16px}
 h1{font-size:1.4rem;margin:0 0 12px}
 #login{max-width:340px;display:flex;flex-direction:column;gap:8px}
-input{border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:10px;padding:10px 12px;font:inherit;min-width:0}
+input,textarea{border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:10px;padding:10px 12px;font:inherit;min-width:0}
 button{border:0;background:var(--berry);color:#fff;border-radius:10px;padding:10px 16px;font:inherit;font-weight:600;cursor:pointer}
 @media(prefers-color-scheme:dark){button{color:#2A1F2D}}
 button:focus-visible,input:focus-visible{outline:3px solid var(--butter);outline-offset:2px}
@@ -59,6 +59,7 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--butter);outline
 .empty{color:var(--mute);margin:auto;text-align:center}
 #f{display:flex;gap:6px;margin-top:8px}
 #f input[type=text],#f input:not([type]){flex:1}
+#f textarea{flex:1;resize:none;field-sizing:content;min-height:44px;max-height:180px;line-height:1.35}
 .clip{display:grid;place-items:center;flex:none;width:44px;border:1px solid var(--line);border-radius:10px;color:var(--berry);cursor:pointer}
 .clip:focus-within{outline:3px solid var(--butter);outline-offset:2px}
 .m audio{display:block;width:250px;max-width:100%;margin-bottom:4px}
@@ -128,7 +129,7 @@ button.mic{background:none;color:var(--berry);padding:0}
 <div id="rap"></div><input id="busca" placeholder="🔎 Buscar produto do catálogo para enviar (ex.: astro)" autocomplete="off" aria-label="Buscar produto"><div id="res"></div>
 <div id="aviso"></div>
 <div id="grav" aria-live="polite"></div>
-<form id="f"><label class="clip" aria-label="Enviar foto"><input id="foto" class="sr" type="file" accept="image/*"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg></label><label class="clip" aria-label="Guardar arquivo na conversa (a cliente não vê)" title="Guardar arquivo na conversa — só você vê"><input id="arq" class="sr" type="file" accept=".svg,.pdf,.zip,.stl,.gcode,.dxf,.txt,.png,.jpg,.jpeg"><span aria-hidden="true">🗂</span></label><button class="clip mic" id="mic" type="button" aria-label="Gravar áudio" title="Gravar áudio"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10v1a7 7 0 0 0 14 0v-1M12 18v4"/></svg></button><input id="txt" placeholder="Responder" autocomplete="off" aria-label="Sua resposta"><button>Responder</button></form></div>
+<form id="f"><label class="clip" aria-label="Enviar foto"><input id="foto" class="sr" type="file" accept="image/*"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg></label><label class="clip" aria-label="Guardar arquivo na conversa (a cliente não vê)" title="Guardar arquivo na conversa — só você vê"><input id="arq" class="sr" type="file" accept=".svg,.pdf,.zip,.stl,.gcode,.dxf,.txt,.png,.jpg,.jpeg"><span aria-hidden="true">🗂</span></label><button class="clip mic" id="mic" type="button" aria-label="Gravar áudio" title="Gravar áudio"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10v1a7 7 0 0 0 14 0v-1M12 18v4"/></svg></button><textarea id="txt" rows="1" placeholder="Responder" autocomplete="off" aria-label="Sua resposta"></textarea><button>Responder</button></form></div>
 </div>
 </div>
 </div>
@@ -709,6 +710,8 @@ const sit=$("sit");
 [["","Sem situação"],...SITUACOES.map(s=>[s,s])].forEach(([v,t])=>{const o=document.createElement("option");o.value=v;o.textContent=t;sit.appendChild(o)});
 sit.onchange=()=>{if(cur)setDoc(doc(db,"chats",cur),{situacao:sit.value},{merge:true}).catch(e=>erro("Não consegui salvar a situação: "+e.code))};
 // respostas rápidas (preenchem a caixa; você revisa e envia)
+// Enter envia; Shift+Enter pula linha (as respostas rápidas têm várias linhas)
+$("txt").addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey&&!e.isComposing){e.preventDefault();$("f").requestSubmit()}});
 RESPOSTAS.forEach(([nome,texto])=>{
   const b=document.createElement("button");b.type="button";b.textContent=nome;b.title=texto;
   b.onclick=()=>{$("txt").value=texto;$("txt").focus()};$("rap").appendChild(b);
