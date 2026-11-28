@@ -100,6 +100,16 @@ button.mic{background:none;color:var(--berry);padding:0}
 @media(prefers-color-scheme:dark){.lemb-on{color:#E7A6D6!important}.lemb-due{color:#F2B8B5!important}}
 #alertas{display:none;flex-direction:column;gap:6px;padding:8px 16px;background:var(--butter,#FFE9A8);color:#2A1F2D;border-bottom:1px solid var(--line)}
 #alertas.on{display:flex}
+#resumo{display:none;flex-direction:column;gap:4px;padding:10px 16px;background:var(--bg);border-bottom:1px solid var(--line);max-height:55vh;overflow:auto}
+#resumo.on{display:flex}
+#resumo h3{margin:8px 0 2px;font-size:.9rem;color:var(--berry)}
+#resumo .a{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:.9rem}
+#resumo .a span{flex:1;min-width:180px}
+#resumo .a small{display:block;color:var(--mute)}
+#resumo .a button{padding:4px 10px;font-size:.85rem}
+#resumo .topo{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+#resumo .topo span{flex:1;color:var(--mute);font-size:.8rem}
+#resumo .vazio{color:var(--mute)}
 #filaBtn{display:none}
 #fila{display:none;flex-direction:column;gap:6px;padding:10px 16px;background:#E3EEFF;color:#1B2A41;border-bottom:1px solid var(--line)}
 #fila.on{display:flex}
@@ -119,9 +129,10 @@ button.mic{background:none;color:var(--berry);padding:0}
 <form id="login"><input id="em" type="email" placeholder="Seu e-mail" autocomplete="username"><input id="pw" type="password" placeholder="Senha" autocomplete="current-password"><button>Entrar</button></form>
 <div id="erro"></div>
 <div id="desk">
-<div class="top"><b>Conversas</b><span id="count"></span><button id="filaBtn" type="button" aria-expanded="false" aria-controls="fila">📥 Fila</button><button id="som" type="button" aria-pressed="true">🔔 Som ligado</button><button id="sair" type="button">Sair</button></div>
+<div class="top"><b>Conversas</b><span id="count"></span><button id="filaBtn" type="button" aria-expanded="false" aria-controls="fila">📥 Fila</button><button id="resBtn" type="button" aria-expanded="false" aria-controls="resumo">📋 Pendências</button><button id="som" type="button" aria-pressed="true">🔔 Som ligado</button><button id="sair" type="button">Sair</button></div>
 <div id="alertas" role="alert"></div>
 <div id="fila" role="region" aria-label="Fila para o notebook"></div>
+<div id="resumo" role="region" aria-label="Pendências de atendimento"></div>
 <div class="cols">
 <div id="list"></div>
 <div class="conv"><div class="titulo"><span id="titulo">Nenhuma conversa aberta</span><select id="sit" aria-label="Situação da conversa"></select><button id="renBtn" type="button">✏️ Renomear</button><button id="lembBtn" type="button" aria-expanded="false" aria-controls="lemb">⏰ Lembrete</button><button id="apagar" type="button">🗑 Apagar</button></div>
@@ -364,6 +375,7 @@ function desenharLista(){
   if(!chats.length)l.innerHTML='<p class="empty" style="padding:16px">Nenhuma conversa ainda.</p>';
   if(cur){const cc=chats.find(x=>x.id===cur);if(cc){$("sit").value=cc.situacao||"";$("lembBtn").textContent=cc.lembreteEm?"⏰ "+fmtLemb(cc.lembreteEm):"⏰ Lembrete"}}
   $("count").textContent=aguardando?aguardando+" aguardando resposta":"Tudo respondido";
+  desenharResumo();
   document.title=(venc?"⏰ ":"")+(aguardando?"("+aguardando+") Painel de atendimento":"Painel de atendimento");
 }
 
@@ -688,6 +700,72 @@ function verificar(){
   if(chave!==chaveVenc){chaveVenc=chave;desenharAlertas(v);desenharLista()}
 }
 setInterval(verificar,15000);
+
+// ---- pendências: resumo de quem espera retorno (calculado a partir das conversas já carregadas) ----
+// Edite aqui: situações em que vale cobrar a cliente e situação que indica produção / envio concluído
+const COBRAR=["Orçamento","Aguardando Pix"],ANDAMENTO=["Em produção"],CONCLUIDO="Enviado";
+const msDe=c=>c.atualizado&&c.atualizado.toMillis?c.atualizado.toMillis():0;
+function faz(t){
+  if(!t)return "";
+  const m=Math.max(0,Math.round((Date.now()-t)/60000));
+  if(m<1)return "agora";if(m<60)return m+" min";
+  const h=Math.floor(m/60);if(h<24)return h+" h";
+  const d=Math.floor(h/24);return d+(d===1?" dia":" dias");
+}
+function pendencias(){
+  const esp=[],cob=[],lem=[],and=[],agora=Date.now();
+  chats.forEach(c=>{
+    const voce=(c.ultima||"").startsWith("Você:");
+    const espera=(c.naoLidas>0||(c.ultima&&!voce))&&!(c.situacao===CONCLUIDO&&!c.naoLidas);
+    if(espera)esp.push(c);else if(COBRAR.includes(c.situacao))cob.push(c);
+    if(c.lembreteEm)lem.push(c);
+    if(ANDAMENTO.includes(c.situacao))and.push(c);
+  });
+  esp.sort((a,b)=>msDe(a)-msDe(b));cob.sort((a,b)=>msDe(a)-msDe(b));lem.sort((a,b)=>a.lembreteEm-b.lembreteEm);and.sort((a,b)=>msDe(a)-msDe(b));
+  const ids=new Set(esp.map(c=>c.id));lem.forEach(c=>{if(c.lembreteEm<=agora)ids.add(c.id)});
+  return {esp,cob,lem,and,total:ids.size};
+}
+function desenharResumo(){
+  const p=pendencias(),box=$("resumo");
+  $("resBtn").textContent="📋 Pendências"+(p.total?" ("+p.total+")":"");
+  if(!box.classList.contains("on"))return;
+  box.textContent="";
+  const trecho=t=>(t||"").replace(/^Você:\s*/,"").slice(0,90);
+  const topo=document.createElement("div");topo.className="topo";
+  const info=document.createElement("span");info.textContent="Considera as 50 conversas mais recentes.";
+  topo.append(info,btn("Copiar resumo",async()=>{
+    const L=[];
+    const sec=(t,arr,f)=>{if(arr.length){L.push(t);arr.forEach(c=>L.push("- "+(c.nome||"Cliente")+": "+f(c)));L.push("")}};
+    sec("Esperando sua resposta:",p.esp,c=>"há "+faz(msDe(c))+" · "+trecho(c.ultima));
+    sec("Lembretes:",p.lem,c=>fmtLemb(c.lembreteEm)+(c.lembreteTexto?" · "+c.lembreteTexto:""));
+    sec("Esperando a cliente (vale cobrar):",p.cob,c=>"["+c.situacao+"] há "+faz(msDe(c)));
+    sec("Em produção:",p.and,c=>"há "+faz(msDe(c)));
+    try{await navigator.clipboard.writeText(L.join("\n").trim()||"Nenhuma pendência.");avisoRapido("✔ Resumo copiado.")}catch(e){erro("Não consegui copiar o resumo.")}
+  },"sec"));
+  box.appendChild(topo);
+  let algum=false;
+  const sec=(titulo,arr,detalhe,cls)=>{
+    if(!arr.length)return;algum=true;
+    const h=document.createElement("h3");h.textContent=titulo+" ("+arr.length+")";box.appendChild(h);
+    arr.forEach(c=>{
+      const row=document.createElement("div");row.className="a";
+      const sp=document.createElement("span"),b=document.createElement("b"),sm=document.createElement("small");
+      b.textContent=c.nome||"Cliente";sp.append(b," · "+detalhe(c));
+      const t=trecho(c.ultima);if(t){sm.textContent=(c.ultima.startsWith("Você:")?"Você: ":"")+t;sp.appendChild(sm)}
+      if(cls&&cls(c))sp.className=cls(c);
+      row.append(sp,btn("Abrir",()=>{abrir(c.id);box.classList.remove("on");$("resBtn").setAttribute("aria-expanded","false")}));
+      box.appendChild(row);
+    });
+  };
+  sec("Esperando sua resposta",p.esp,c=>"há "+faz(msDe(c))+(c.naoLidas?" · "+c.naoLidas+" não lida(s)":""));
+  sec("Lembretes",p.lem,c=>"⏰ "+fmtLemb(c.lembreteEm)+(c.lembreteTexto?" · "+c.lembreteTexto:""),c=>c.lembreteEm<=Date.now()?"lemb-due":"");
+  sec("Esperando a cliente (vale cobrar)",p.cob,c=>"["+c.situacao+"] sem resposta há "+faz(msDe(c)));
+  sec("Em produção",p.and,c=>"última atividade há "+faz(msDe(c)));
+  if(!algum){const v=document.createElement("p");v.className="vazio";v.textContent="Nenhuma pendência no momento 🎉";box.appendChild(v)}
+}
+$("resBtn").onclick=()=>{const on=$("resumo").classList.toggle("on");$("resBtn").setAttribute("aria-expanded",String(on));desenharResumo()};
+setInterval(desenharResumo,60000);
+
 document.addEventListener("visibilitychange",()=>{if(!document.hidden)verificar()});
 const AMANHA=()=>{const d=new Date();d.setDate(d.getDate()+1);d.setHours(9,0,0,0);return d.getTime()};
 [["+15 min",()=>Date.now()+15*60000],["+30 min",()=>Date.now()+30*60000],["+1 h",()=>Date.now()+60*60000],["+2 h",()=>Date.now()+120*60000],["Amanhã 9h",AMANHA]].forEach(([t,f])=>{
