@@ -193,7 +193,7 @@ function botaoCopiar(texto,id){
   return b;
 }
 
-// ---- menu da foto (botão direito): prepara a foto e o prompt para o Gemini ----
+// ---- menu da foto (botão direito): copiar prompt e salvar como logomarca ----
 // Para mudar o prompt, edite o texto entre as crases.
 const PROMPT_GEMINI=`Gere a mesma imagem com fundo branco, com traços finos na cor preta. Retire qualquer perspectiva, visando criar imagens fáceis para vetorização posterior.
 
@@ -203,39 +203,71 @@ O estilo final deve ser um vetor bidimensional de alto contraste, com fundo tota
 Estilo: Minimalista, vetor 2D, alto contraste.
 Cores: Fundo Branco, Elementos Pretos (essencial para rasterização/corte).`;
 
-function paraPng(img){
-  return new Promise((ok,no)=>{
-    const c=document.createElement("canvas");c.width=img.naturalWidth;c.height=img.naturalHeight;
-    const x=c.getContext("2d");x.fillStyle="#fff";x.fillRect(0,0,c.width,c.height);x.drawImage(img,0,0);
-    c.toBlob(b=>b?ok(b):no(new Error("falha ao preparar a foto")),"image/png");
-  });
-}
-const copiarFoto=img=>navigator.clipboard.write([new ClipboardItem({"image/png":paraPng(img)})]);
 const copiarPrompt=()=>navigator.clipboard.writeText(PROMPT_GEMINI);
-// copia a foto e depois o prompt: ficam como dois itens no histórico (Win+V)
-async function copiarFotoEPrompt(img){
-  await copiarFoto(img);
-  await new Promise(r=>setTimeout(r,800));
-  await copiarPrompt();
+
+// Salvar logomarca: cria Clientes\<cliente>\<nome que você digitar>\ e grava a foto lá dentro.
+// Na primeira vez (e de vez em quando) o navegador pede para você escolher a pasta Clientes.
+const nomeSeguro=n=>n.replace(/[<>:"\/\\|?*\x00-\x1f]/g," ").replace(/\s+/g," ").trim().replace(/^[ .]+|[ .]+$/g,"").slice(0,150);
+const chaveNome=t=>t.normalize("NFKD").replace(/[\u0300-\u036f]/g,"").toLowerCase().split(/\s+/).filter(Boolean).join(" ");
+const bdPasta=()=>new Promise((ok,no)=>{const r=indexedDB.open("kellen-painel",1);r.onupgradeneeded=()=>r.result.createObjectStore("h");r.onsuccess=()=>ok(r.result);r.onerror=()=>no(r.error)});
+async function lerPasta(){try{const d=await bdPasta();return await new Promise(ok=>{const r=d.transaction("h").objectStore("h").get("clientes");r.onsuccess=()=>ok(r.result||null);r.onerror=()=>ok(null)})}catch(e){return null}}
+async function guardarPasta(h){try{const d=await bdPasta();d.transaction("h","readwrite").objectStore("h").put(h,"clientes")}catch(e){}}
+async function pastaClientes(){
+  if(!window.showDirectoryPicker)throw new Error("use o Chrome ou o Edge no computador para salvar em pastas");
+  let h=await lerPasta();
+  if(h){
+    try{if(await h.queryPermission({mode:"readwrite"})!=="granted"&&await h.requestPermission({mode:"readwrite"})!=="granted")h=null}catch(e){h=null}
+  }
+  if(!h){
+    h=await showDirectoryPicker({id:"clientes",mode:"readwrite",startIn:"desktop"});
+    await guardarPasta(h);
+  }
+  return h;
 }
+async function subpasta(pai,nome){
+  for await(const [n,h] of pai.entries())if(h.kind==="directory"&&chaveNome(n)===chaveNome(nome))return h;
+  return pai.getDirectoryHandle(nome,{create:true});
+}
+async function bytesDaFoto(src){
+  if(src.startsWith("data:")){
+    const i=src.indexOf(","),mime=(/^data:([^;,]+)/.exec(src)||[])[1]||"image/png";
+    return {mime,bytes:Uint8Array.from(atob(src.slice(i+1)),c=>c.charCodeAt(0))};
+  }
+  const r=await fetch(src),b=await r.blob();
+  return {mime:b.type||"image/png",bytes:new Uint8Array(await b.arrayBuffer())};
+}
+async function salvarLogo(img){
+  const c=chats.find(x=>x.id===cur),cliente=nomeSeguro((c&&c.nome)||"");
+  if(!cliente)throw new Error("não achei o nome da cliente");
+  const raiz=await pastaClientes();
+  const nome=nomeSeguro(prompt("Nome da pasta da logomarca (ex.: DV Gênesis):\nCliente: "+cliente)||"");
+  if(!nome)return "Cancelado: nada foi salvo.";
+  const pCliente=await subpasta(raiz,cliente),pLogo=await subpasta(pCliente,nome);
+  const {mime,bytes}=await bytesDaFoto(img.src);
+  const ext=({"image/jpeg":".jpg","image/png":".png","image/webp":".webp","image/gif":".gif"})[mime]||".png";
+  let arq=nome+ext,n=2;
+  for(;;){try{await pLogo.getFileHandle(arq)}catch(e){break}arq=nome+" ("+n+++")"+ext}
+  const w=await (await pLogo.getFileHandle(arq,{create:true})).createWritable();
+  await w.write(bytes);await w.close();
+  let copiou=" Nome da cliente copiado.";
+  try{await navigator.clipboard.writeText(cliente)}catch(e){copiou=""}
+  return "✔ Salva em Clientes\\"+cliente+"\\"+nome+"\\"+arq+"."+copiou;
+}
+
 let tAviso;
 function avisoRapido(t){aviso(t);clearTimeout(tAviso);tAviso=setTimeout(()=>aviso(""),12000)}
 function fecharMenuFoto(){const m=$("menuFoto");if(m)m.remove()}
 function abrirMenuFoto(x,y,img){
   fecharMenuFoto();
   const menu=document.createElement("div");menu.id="menuFoto";menu.setAttribute("role","menu");
-  const pronto="✔ Foto e prompt copiados. No Gemini: Ctrl+V cola o prompt; Win+V mostra a foto para colar.";
-  [["✨ Copiar foto + prompt",()=>copiarFotoEPrompt(img),pronto],
-   ["↗ Copiar e abrir o Gemini",async()=>{await copiarFotoEPrompt(img);if(!window.open("https://gemini.google.com/app","_blank"))throw new Error("o navegador bloqueou a nova aba")},pronto],
-   ["🖼 Copiar só a foto",()=>copiarFoto(img),"✔ Foto copiada."],
-   ["📝 Copiar só o prompt",copiarPrompt,"✔ Prompt copiado."],
-   ["🔍 Ampliar foto",async()=>ampliar(img.src),""]
+  [["📝 Copiar prompt",()=>copiarPrompt(),"✔ Prompt copiado."],
+   ["💾 Salvar como logomarca…",()=>salvarLogo(img),"✔ Foto salva."]
   ].forEach(([nome,fazer,ok])=>{
     const b=document.createElement("button");b.type="button";b.textContent=nome;b.setAttribute("role","menuitem");
     b.onclick=async()=>{
-      fecharMenuFoto();erro("");if(ok)aviso("Copiando… fique nesta tela um instante.");
-      try{await fazer();if(ok)avisoRapido(ok)}
-      catch(e){aviso("");erro("Não consegui concluir: "+(e.message||e.name))}
+      fecharMenuFoto();erro("");
+      try{const r=await fazer();avisoRapido(typeof r==="string"?r:ok)}
+      catch(e){aviso("");if(e.name!=="AbortError")erro("Não consegui concluir: "+(e.message||e.name))}
     };
     menu.appendChild(b);
   });
