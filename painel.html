@@ -95,6 +95,13 @@ button.mic{background:none;color:var(--berry);padding:0}
 @media(prefers-color-scheme:dark){.lemb-on{color:#E7A6D6!important}.lemb-due{color:#F2B8B5!important}}
 #alertas{display:none;flex-direction:column;gap:6px;padding:8px 16px;background:var(--butter,#FFE9A8);color:#2A1F2D;border-bottom:1px solid var(--line)}
 #alertas.on{display:flex}
+#filaBtn{display:none}
+#fila{display:none;flex-direction:column;gap:6px;padding:10px 16px;background:#E3EEFF;color:#1B2A41;border-bottom:1px solid var(--line)}
+#fila.on{display:flex}
+#fila .a{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+#fila .a span{flex:1;min-width:180px}
+#fila button{padding:4px 10px;font-size:.85rem;background:#1B2A41;color:#fff}
+#fila button.sec{background:none;color:#1B2A41;border:1px solid #1B2A41}
 #alertas .a{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 #alertas .a span{flex:1;min-width:160px}
 #alertas button{padding:4px 10px;font-size:.85rem;background:#2A1F2D;color:#fff}
@@ -107,8 +114,9 @@ button.mic{background:none;color:var(--berry);padding:0}
 <form id="login"><input id="em" type="email" placeholder="Seu e-mail" autocomplete="username"><input id="pw" type="password" placeholder="Senha" autocomplete="current-password"><button>Entrar</button></form>
 <div id="erro"></div>
 <div id="desk">
-<div class="top"><b>Conversas</b><span id="count"></span><button id="som" type="button" aria-pressed="true">🔔 Som ligado</button><button id="sair" type="button">Sair</button></div>
+<div class="top"><b>Conversas</b><span id="count"></span><button id="filaBtn" type="button" aria-expanded="false" aria-controls="fila">📥 Fila</button><button id="som" type="button" aria-pressed="true">🔔 Som ligado</button><button id="sair" type="button">Sair</button></div>
 <div id="alertas" role="alert"></div>
+<div id="fila" role="region" aria-label="Fila para o notebook"></div>
 <div class="cols">
 <div id="list"></div>
 <div class="conv"><div class="titulo"><span id="titulo">Nenhuma conversa aberta</span><select id="sit" aria-label="Situação da conversa"></select><button id="renBtn" type="button">✏️ Renomear</button><button id="lembBtn" type="button" aria-expanded="false" aria-controls="lemb">⏰ Lembrete</button><button id="apagar" type="button">🗑 Apagar</button></div>
@@ -124,7 +132,7 @@ button.mic{background:none;color:var(--berry);padding:0}
 <script type="module">
 import {initializeApp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {getAuth,signInWithEmailAndPassword,signOut,onAuthStateChanged} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import {getFirestore,doc,setDoc,getDocs,deleteDoc,collection,query,orderBy,limit,onSnapshot,serverTimestamp,writeBatch} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import {getFirestore,doc,setDoc,getDocs,deleteDoc,collection,query,orderBy,limit,onSnapshot,serverTimestamp,writeBatch,getDoc,arrayUnion,arrayRemove} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import {firebaseConfig} from "./firebase-config.js";
 import {CATALOGO_URL,RESPOSTAS,SITUACOES} from "./loja-config.js";
 
@@ -236,32 +244,87 @@ async function bytesDaFoto(src){
   const r=await fetch(src),b=await r.blob();
   return {mime:b.type||"image/png",bytes:new Uint8Array(await b.arrayBuffer())};
 }
+async function gravarLogo(raiz,cliente,nome,src){
+  const pCliente=await subpasta(raiz,cliente),pLogo=await subpasta(pCliente,nome);
+  const {mime,bytes}=await bytesDaFoto(src);
+  const ext=({"image/jpeg":".jpg","image/png":".png","image/webp":".webp","image/gif":".gif"})[mime]||".png";
+  let arq=nome+ext,n=2;
+  for(;;){try{await pLogo.getFileHandle(arq)}catch(e){break}arq=nome+" ("+n+++")"+ext}
+  const w=await (await pLogo.getFileHandle(arq,{create:true})).createWritable();
+  await w.write(bytes);await w.close();
+  return "Clientes\\"+cliente+"\\"+nome+"\\"+arq;
+}
 async function salvarLogo(img){
   const c=chats.find(x=>x.id===cur),cliente=nomeSeguro((c&&c.nome)||"");
   if(!cliente)throw new Error("não achei o nome da cliente");
   const raiz=await pastaClientes();
   const nome=nomeSeguro(prompt("Nome da pasta da logomarca (ex.: DV Gênesis):\nCliente: "+cliente)||"");
   if(!nome)return "Cancelado: nada foi salvo.";
-  const pCliente=await subpasta(raiz,cliente),pLogo=await subpasta(pCliente,nome);
-  const {mime,bytes}=await bytesDaFoto(img.src);
-  const ext=({"image/jpeg":".jpg","image/png":".png","image/webp":".webp","image/gif":".gif"})[mime]||".png";
-  let arq=nome+ext,n=2;
-  for(;;){try{await pLogo.getFileHandle(arq)}catch(e){break}arq=nome+" ("+n+++")"+ext}
-  const w=await (await pLogo.getFileHandle(arq,{create:true})).createWritable();
-  await w.write(bytes);await w.close();
+  const caminho=await gravarLogo(raiz,cliente,nome,img.src);
   let copiou=" Nome da cliente copiado.";
   try{await navigator.clipboard.writeText(cliente)}catch(e){copiou=""}
-  return "✔ Salva em Clientes\\"+cliente+"\\"+nome+"\\"+arq+"."+copiou;
+  return "✔ Salva em "+caminho+"."+copiou;
 }
+
+// ---- Fila para o notebook: no outro computador você só anota (gatilho); no notebook clica em Criar ----
+// Os gatilhos ficam no próprio documento da conversa (campo "gatilhos"); a foto continua na conversa.
+async function marcarGatilho(msgId){
+  const c=chats.find(x=>x.id===cur),cliente=nomeSeguro((c&&c.nome)||"");
+  if(!cliente||!msgId)throw new Error("não achei a conversa ou a foto");
+  const nome=nomeSeguro(prompt("Nome da pasta da logomarca (ex.: DV Gênesis):\nCliente: "+cliente)||"");
+  if(!nome)return "Cancelado: nada foi anotado.";
+  await setDoc(doc(db,"chats",cur),{gatilhos:arrayUnion({id:msgId,pasta:nome,em:Date.now()})},{merge:true});
+  return "✔ Anotado para o notebook: "+cliente+" › "+nome+".";
+}
+const tirarGatilho=(chatId,g)=>setDoc(doc(db,"chats",chatId),{gatilhos:arrayRemove(g)},{merge:true});
+async function criarGatilho(raiz,c,g){
+  const cliente=nomeSeguro(c.nome||"");
+  if(!cliente)throw new Error("conversa sem nome");
+  const m=await getDoc(doc(db,"chats",c.id,"messages",g.id));
+  if(!m.exists()||!m.data().imagem)throw new Error("a foto não existe mais (conversa apagada?)");
+  await gravarLogo(raiz,cliente,nomeSeguro(g.pasta),m.data().imagem);
+  await tirarGatilho(c.id,g);
+}
+const listaFila=()=>chats.flatMap(c=>(c.gatilhos||[]).map(g=>({c,g}))).sort((x,y)=>x.g.em-y.g.em);
+function desenharFila(){
+  const itens=listaFila(),box=$("fila"),bt=$("filaBtn");
+  bt.style.display=itens.length?"inline-block":"none";
+  bt.textContent="📥 Fila ("+itens.length+")";
+  if(!itens.length){box.classList.remove("on");bt.setAttribute("aria-expanded","false")}
+  box.textContent="";
+  if(!itens.length)return;
+  const topo=document.createElement("div");topo.className="a";
+  const t=document.createElement("span");t.textContent="Para criar no notebook:";
+  topo.append(t,btn("Criar tudo",async()=>{
+    erro("");let ok=0;const falhas=[];
+    try{
+      const raiz=await pastaClientes();
+      for(const {c,g} of itens){try{await criarGatilho(raiz,c,g);ok++}catch(e){falhas.push((c.nome||"Cliente")+" › "+g.pasta+": "+(e.message||e.name))}}
+    }catch(e){if(e.name!=="AbortError")erro("Não consegui criar: "+(e.message||e.name));return}
+    avisoRapido("✔ "+ok+" pasta(s) criada(s)."+(falhas.length?" Falhou: "+falhas.join(" | "):""));
+  }));
+  box.appendChild(topo);
+  itens.forEach(({c,g})=>{
+    const row=document.createElement("div");row.className="a";
+    const sp=document.createElement("span"),b=document.createElement("b");b.textContent=c.nome||"Cliente";
+    sp.append(b," › "+g.pasta);
+    row.append(sp,
+      btn("Criar",async()=>{erro("");try{const raiz=await pastaClientes();await criarGatilho(raiz,c,g);avisoRapido("✔ Pasta criada: "+(c.nome||"Cliente")+" › "+g.pasta)}catch(e){if(e.name!=="AbortError")erro("Não consegui criar: "+(e.message||e.name))}}),
+      btn("Descartar",async()=>{if(confirm('Descartar "'+g.pasta+'" de '+(c.nome||"Cliente")+"?"))try{await tirarGatilho(c.id,g)}catch(e){erro("Não consegui descartar: "+(e.code||e.message))}},"sec"));
+    box.appendChild(row);
+  });
+}
+$("filaBtn").onclick=()=>{const on=$("fila").classList.toggle("on");$("filaBtn").setAttribute("aria-expanded",String(on))};
 
 let tAviso;
 function avisoRapido(t){aviso(t);clearTimeout(tAviso);tAviso=setTimeout(()=>aviso(""),12000)}
 function fecharMenuFoto(){const m=$("menuFoto");if(m)m.remove()}
-function abrirMenuFoto(x,y,img){
+function abrirMenuFoto(x,y,img,msgId){
   fecharMenuFoto();
   const menu=document.createElement("div");menu.id="menuFoto";menu.setAttribute("role","menu");
   [["📝 Copiar prompt",()=>copiarPrompt(),"✔ Prompt copiado."],
-   ["💾 Salvar como logomarca…",()=>salvarLogo(img),"✔ Foto salva."]
+   ["💾 Salvar como logomarca…",()=>salvarLogo(img),"✔ Foto salva."],
+   ["⏳ Marcar para o notebook…",()=>marcarGatilho(msgId),"✔ Anotado."]
   ].forEach(([nome,fazer,ok])=>{
     const b=document.createElement("button");b.type="button";b.textContent=nome;b.setAttribute("role","menuitem");
     b.onclick=async()=>{
@@ -319,7 +382,7 @@ function abrir(id){
       if(m.tipo==="produto"&&okUrl(m.url)&&(!m.imagem||okUrl(m.imagem))){el.appendChild(cartao(m.titulo,m.url,m.imagem))}else if(m.imagem){
         const i=document.createElement("img");i.src=m.imagem;i.alt="Foto enviada";
         i.onclick=()=>ampliar(m.imagem);i.onload=()=>{box.scrollTop=box.scrollHeight};
-        i.oncontextmenu=e=>{e.preventDefault();abrirMenuFoto(e.clientX,e.clientY,i)};
+        i.oncontextmenu=e=>{e.preventDefault();abrirMenuFoto(e.clientX,e.clientY,i,d.id)};
         el.appendChild(i);
       }
       if(typeof m.audio==="string"&&m.audio.startsWith("data:audio/"))el.appendChild(player(d.id,m.audio));
@@ -346,7 +409,7 @@ function iniciar(){
     if(antes&&novos.some(c=>c.id!==cur&&(c.naoLidas||0)>(antes[c.id]||0)))plim();
     antes={};novos.forEach(c=>{antes[c.id]=c.naoLidas||0});
     chats=novos;
-    desenharLista();verificar();
+    desenharLista();desenharFila();verificar();
   },e=>erro("Não consegui ler as conversas: "+e.code+" (confira as regras do Firestore)"));
 }
 
