@@ -492,6 +492,7 @@ function copiarOrcamento(){
   const L=listaMarcas(cur);if(!L.length)return;
   const zero=L.filter(m=>!m.preco);
   if(zero.length&&!confirm("Estes itens estão com valor R$ 0,00:\n\n"+zero.map(m=>"- "+nomeOrc(m)).join("\n")+"\n\nOK para copiar mesmo assim?"))return;
+  if(!L.some(ehEnvio)&&!confirm("Nenhum envio (SEDEX, PAC ou Frete) foi marcado neste pedido.\n\nOK para copiar mesmo assim (ex.: retirada)?"))return;
   navigator.clipboard.writeText(textoOrcamento(L)).then(()=>avisoRapido("✔ Orçamento copiado."),()=>erro("Não consegui copiar."));
 }
 function copiarResumo(){
