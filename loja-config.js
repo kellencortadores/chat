@@ -25,7 +25,16 @@ export const RESPOSTAS = [
   ["Envio", `Caso queira confirmar a compra precisarei das seguintes informações:
 👉 Nome completo
 👉 Endereço completo com CEP (Para calcular seu frete)
-👉 CPF (para cadastrar no sistema de envio que uso)`]
+👉 CPF (para cadastrar no sistema de envio que uso)`],
+  ["Salvar chat", `📲 Para ficar como um app no celular:
+
+🍎 iPhone (Safari): toque no botão de compartilhar (o quadradinho com seta, embaixo) e escolha "Adicionar à Tela de Início". Depois toque em "Adicionar".
+
+🤖 Android (Chrome): toque nos 3 pontinhos (no canto de cima) e escolha "Adicionar à tela inicial". Depois toque em "Adicionar".
+
+⚠️ Faça isso antes de começar a conversar, para não perder o histórico.
+
+Depois é só abrir o ícone "Kellen" e me mandar mensagem ou foto! 💜`]
 ];
 
 // Situação de cada conversa (menu no painel)
