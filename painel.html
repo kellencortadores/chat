@@ -64,7 +64,11 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--butter);outline
 .clip:focus-within{outline:3px solid var(--butter);outline-offset:2px}
 .m audio{display:block;width:250px;max-width:100%;margin-bottom:4px}
 .m:has(audio){width:min(290px,88%);max-width:88%}
-button.mic{background:none;color:var(--berry);padding:0}
+button.mic,button#lupa{background:none;color:var(--berry);padding:0}
+button#lupa{font-size:1.15rem}
+#fMarca #mCat{display:flex;flex-direction:column;gap:6px}
+#fMarca #mCat[hidden]{display:none}
+#fMarca #mSel{display:flex;flex-wrap:wrap;gap:8px;align-items:center;color:var(--ink)}
 #grav{display:none;flex-wrap:wrap;gap:6px;align-items:center;margin:8px 10px 0;padding:10px;border:2px solid var(--berry);border-radius:12px;font-size:.9rem}
 #grav.on{display:flex}
 #grav span,#grav audio{flex:1 1 100%;width:100%}
@@ -81,10 +85,11 @@ button.mic{background:none;color:var(--berry);padding:0}
 .pc span{display:block;padding:0 10px 8px;font-size:.8rem;color:var(--mute)}
 #rap{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
 #rap button{background:none;color:var(--berry);border:1px solid var(--line);padding:4px 10px;font-weight:500;font-size:.85rem}
-#busca{width:100%;margin-top:8px}
-#res{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;color:var(--mute);font-size:.85rem}
-#res button{display:flex;align-items:center;gap:6px;background:var(--theirs);color:var(--ink);font-weight:500;padding:4px 10px 4px 4px;font-size:.85rem}
-#res img{width:36px;height:36px;object-fit:cover;border-radius:6px}
+#busca,#mBusca{width:100%;margin-top:8px}
+#busca[hidden]{display:none}
+#res,#mRes{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;color:var(--mute);font-size:.85rem}
+#res button,#mRes button{display:flex;align-items:center;gap:6px;background:var(--theirs);color:var(--ink);font-weight:500;padding:4px 10px 4px 4px;font-size:.85rem}
+#res img,#mRes img{width:36px;height:36px;object-fit:cover;border-radius:6px}
 #sit{display:none;font:inherit;font-size:.8rem;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:8px;padding:3px 6px}
 .m a:not(.pc){color:inherit;text-decoration:underline;word-break:break-all}
 #renBtn,#lembBtn,#pedBtn{display:none;background:none;color:var(--berry);border:1px solid var(--line);padding:4px 10px;font-weight:500;font-size:.85rem}
@@ -101,15 +106,25 @@ button.mic{background:none;color:var(--berry);padding:0}
 #alertas{display:none;flex-direction:column;gap:6px;padding:8px 16px;background:var(--butter,#FFE9A8);color:#2A1F2D;border-bottom:1px solid var(--line)}
 #alertas.on{display:flex}
 #resumo{display:none;flex-direction:column;gap:4px;padding:10px 16px;background:var(--bg);border-bottom:1px solid var(--line);max-height:55vh;overflow:auto}
+#itens{display:none;flex-direction:column;gap:4px;padding:10px 16px;background:var(--bg);border-bottom:1px solid var(--line);max-height:55vh;overflow:auto}
 #resumo.on{display:flex}
+#itens.on{display:flex}
 #resumo h3{margin:8px 0 2px;font-size:.9rem;color:var(--berry)}
+#itens h3{margin:8px 0 2px;font-size:.9rem;color:var(--berry)}
 #resumo .a{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:.9rem}
+#itens .a{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:.9rem}
 #resumo .a span{flex:1;min-width:180px}
+#itens .a span{flex:1;min-width:180px}
 #resumo .a small{display:block;color:var(--mute)}
+#itens .a small{display:block;color:var(--mute)}
 #resumo .a button{padding:4px 10px;font-size:.85rem}
+#itens .a button{padding:4px 10px;font-size:.85rem}
 #resumo .topo{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+#itens .topo{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 #resumo .topo span{flex:1;color:var(--mute);font-size:.8rem}
+#itens .topo span{flex:1;color:var(--mute);font-size:.8rem}
 #resumo .vazio{color:var(--mute)}
+#itens .vazio{color:var(--mute)}
 #filaBtn{display:none}
 #fila{display:none;flex-direction:column;gap:6px;padding:10px 16px;background:#E3EEFF;color:#1B2A41;border-bottom:1px solid var(--line)}
 #fila.on{display:flex}
@@ -159,23 +174,24 @@ button.mic{background:none;color:var(--berry);padding:0}
 <form id="login"><input id="em" type="email" placeholder="Seu e-mail" autocomplete="username"><input id="pw" type="password" placeholder="Senha" autocomplete="current-password"><button>Entrar</button></form>
 <div id="erro"></div>
 <div id="desk">
-<div class="top"><b>Conversas</b><span id="count"></span><button id="filaBtn" type="button" aria-expanded="false" aria-controls="fila">📥 Fila</button><button id="resBtn" type="button" aria-expanded="false" aria-controls="resumo">📋 Pendências</button><button id="som" type="button" aria-pressed="true">🔔 Som ligado</button><button id="sair" type="button">Sair</button></div>
+<div class="top"><b>Conversas</b><span id="count"></span><button id="filaBtn" type="button" aria-expanded="false" aria-controls="fila">📥 Fila</button><button id="itensBtn" type="button" aria-expanded="false" aria-controls="itens">📌 Itens</button><button id="resBtn" type="button" aria-expanded="false" aria-controls="resumo">📋 Pendências</button><button id="som" type="button" aria-pressed="true">🔔 Som ligado</button><button id="sair" type="button">Sair</button></div>
 <div id="alertas" role="alert"></div>
 <div id="fila" role="region" aria-label="Fila para o notebook"></div>
+<div id="itens" role="region" aria-label="Itens marcados em todas as conversas"></div>
 <div id="resumo" role="region" aria-label="Pendências de atendimento"></div>
 <div class="cols">
 <div id="list"></div>
 <div class="conv"><div class="titulo"><span id="titulo">Nenhuma conversa aberta</span><select id="sit" aria-label="Situação da conversa"></select><button id="renBtn" type="button">✏️ Renomear</button><button id="pedBtn" type="button" aria-expanded="false" aria-controls="pedidos">📌 Pedidos</button><button id="lembBtn" type="button" aria-expanded="false" aria-controls="lemb">⏰ Lembrete</button><button id="apagar" type="button">🗑 Apagar</button></div>
 <div id="pedidos" hidden role="region" aria-label="Pedidos marcados nesta conversa"></div>
 <div id="lemb" hidden><input id="lembTexto" placeholder="O que preciso devolver a ela? (opcional)" maxlength="120" autocomplete="off" aria-label="Anotação do lembrete"><div class="ch" id="lembRap"></div><div class="lin"><input id="lembQuando" type="datetime-local" aria-label="Data e hora do lembrete"><button id="lembOk" type="button">Agendar</button><button id="lembDel" type="button">Remover</button></div></div><div id="msgs" aria-live="polite"><p class="empty">Escolha uma conversa.</p></div>
-<div id="rap"></div><input id="busca" placeholder="🔎 Buscar produto do catálogo para enviar (ex.: astro)" autocomplete="off" aria-label="Buscar produto"><div id="res"></div>
+<div id="rap"></div><input id="busca" placeholder="🔎 Buscar produto do catálogo para enviar (ex.: astro)" autocomplete="off" aria-label="Buscar produto" hidden><div id="res"></div>
 <div id="aviso"></div>
 <div id="grav" aria-live="polite"></div>
-<form id="f"><label class="clip" aria-label="Enviar foto"><input id="foto" class="sr" type="file" accept="image/*"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg></label><label class="clip" aria-label="Guardar arquivo na conversa (a cliente não vê)" title="Guardar arquivo na conversa — só você vê"><input id="arq" class="sr" type="file" accept=".svg,.pdf,.zip,.stl,.gcode,.dxf,.txt,.png,.jpg,.jpeg"><span aria-hidden="true">🗂</span></label><button class="clip mic" id="mic" type="button" aria-label="Gravar áudio" title="Gravar áudio"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10v1a7 7 0 0 0 14 0v-1M12 18v4"/></svg></button><textarea id="txt" rows="1" placeholder="Responder" autocomplete="off" aria-label="Sua resposta"></textarea><button>Responder</button></form></div>
+<form id="f"><label class="clip" aria-label="Enviar foto"><input id="foto" class="sr" type="file" accept="image/*"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg></label><label class="clip" aria-label="Guardar arquivo na conversa (a cliente não vê)" title="Guardar arquivo na conversa — só você vê"><input id="arq" class="sr" type="file" accept=".svg,.pdf,.zip,.stl,.gcode,.dxf,.txt,.png,.jpg,.jpeg"><span aria-hidden="true">🗂</span></label><button class="clip" id="lupa" type="button" aria-label="Buscar produto do catálogo para enviar" aria-expanded="false" title="Buscar produto do catálogo para enviar">🔎</button><button class="clip mic" id="mic" type="button" aria-label="Gravar áudio" title="Gravar áudio"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10v1a7 7 0 0 0 14 0v-1M12 18v4"/></svg></button><textarea id="txt" rows="1" placeholder="Responder" autocomplete="off" aria-label="Sua resposta"></textarea><button>Responder</button></form></div>
 </div>
 </div>
 </div>
-<div id="dlgMarca" role="dialog" aria-modal="true" aria-labelledby="mTitulo" hidden><form id="fMarca"><b id="mTitulo"></b><label>Nome do pedido<input id="mNome" maxlength="60" autocomplete="off" placeholder="ex.: Logomarca DV (pode deixar em branco)"></label><label>Tamanho<input id="mTam" maxlength="30" autocomplete="off" placeholder="ex.: 5 cm"></label><label>Observações<textarea id="mObs" rows="3" maxlength="500" placeholder="ex.: sem o texto, cliente quer só o símbolo"></textarea></label><label>Estado<select id="mEst"></select></label><div class="lin"><button>Salvar</button><button type="button" class="sec" id="mCan">Cancelar</button><button type="button" id="mDel">Remover marcação</button></div></form></div>
+<div id="dlgMarca" role="dialog" aria-modal="true" aria-labelledby="mTitulo" hidden><form id="fMarca"><b id="mTitulo"></b><label>Nome do pedido<input id="mNome" maxlength="60" autocomplete="off" placeholder="ex.: Logomarca DV (pode deixar em branco)"></label><label>Origem<select id="mOrig"><option value="">Não definido</option><option value="catalogo">Do catálogo</option><option value="novo">Novo (logomarca / criação)</option></select></label><div id="mCat" hidden><input id="mBusca" placeholder="🔎 Buscar modelo do catálogo (ex.: rena)" autocomplete="off" aria-label="Buscar modelo do catálogo"><div id="mRes"></div><div id="mSel"></div></div><label>Tamanho<input id="mTam" maxlength="30" autocomplete="off" placeholder="ex.: 5 cm"></label><label>Observações<textarea id="mObs" rows="3" maxlength="500" placeholder="ex.: sem o texto, cliente quer só o símbolo"></textarea></label><label>Estado<select id="mEst"></select></label><div class="lin"><button>Salvar</button><button type="button" class="sec" id="mCan">Cancelar</button><button type="button" id="mDel">Remover marcação</button></div></form></div>
 <div id="zoom" role="dialog" aria-label="Foto ampliada"><img alt="Foto ampliada"></div>
 <script type="module">
 import {initializeApp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
@@ -373,7 +389,8 @@ let cache={};
 const marcasDe=id=>{const c=chats.find(x=>x.id===id);return (c&&c.marcas)||{}};
 const listaMarcas=id=>Object.entries(marcasDe(id)).map(([mid,m])=>({mid,...m})).sort((a,b)=>a.n-b.n);
 function proximoN(){const c=chats.find(x=>x.id===cur);return Math.max((c&&c.marcaSeq)||0,0,...listaMarcas(cur).map(m=>m.n))+1}
-const textoMarca=m=>"#"+m.n+" "+m.nome+(m.tamanho?" · "+m.tamanho:"")+(m.estado&&m.estado!=="Aberto"?" · "+m.estado:"");
+const rotuloOrigem=m=>m.origem==="catalogo"?"📖 "+(m.modelo&&m.modelo.titulo?m.modelo.titulo:"catálogo"):m.origem==="novo"?"🆕 novo":"";
+const textoMarca=m=>"#"+m.n+" "+m.nome+(m.tamanho?" · "+m.tamanho:"")+(rotuloOrigem(m)?" · "+rotuloOrigem(m):"")+(m.estado&&m.estado!=="Aberto"?" · "+m.estado:"");
 function pintarMarca(el,msgId){
   el.querySelectorAll(".marca,.btMarca").forEach(x=>x.remove());
   const m=marcasDe(cur)[msgId];
@@ -387,10 +404,34 @@ function aplicarMarcas(){
   document.querySelectorAll("#msgs .m[data-id]").forEach(el=>pintarMarca(el,el.dataset.id));
   desenharPedidos();
 }
+let mModelo=null;
+const achar=txt=>{const ws=sem(txt).split(/[^a-z0-9]+/).filter(Boolean);return ws.length?produtos.filter(p=>ws.every(w=>p._w.some(k=>k.startsWith(w)))).slice(0,8):[]};
+function pintarModelo(){
+  const s=$("mSel");s.textContent="";
+  if(!mModelo)return;
+  const t=document.createElement("b");t.textContent="✔ "+mModelo.titulo+(mModelo.tema?" ("+mModelo.tema+")":"");
+  s.append(t,btn("trocar",()=>{mModelo=null;pintarModelo();$("mBusca").focus()},"sec"));
+}
+function mostrarOrigem(){$("mCat").hidden=$("mOrig").value!=="catalogo"}
+$("mOrig").onchange=()=>{mostrarOrigem();if($("mOrig").value==="catalogo"&&!mModelo)$("mBusca").focus()};
+$("mBusca").oninput=()=>{
+  const r=$("mRes");r.textContent="";
+  if(!$("mBusca").value.trim())return;
+  achar($("mBusca").value).forEach(p=>{
+    const b=document.createElement("button");b.type="button";
+    if(p.imagem){const im=document.createElement("img");im.src=CATALOGO_URL+p.imagem;im.alt="";b.appendChild(im)}
+    b.appendChild(document.createTextNode(p.titulo+" ("+p.tema+")"));
+    b.onclick=()=>{mModelo={titulo:p.titulo,tema:p.tema||"",url:p.url||""};if(!$("mNome").value.trim())$("mNome").value=p.titulo;$("mBusca").value="";r.textContent="";pintarModelo()};
+    r.appendChild(b);
+  });
+  if(!r.children.length)r.textContent=produtos.length?"Nenhum modelo encontrado.":"Catálogo ainda não carregou.";
+};
+$("mBusca").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();const b=$("mRes").querySelector("button");if(b)b.click()}});
 function abrirMarca(msgId){
   if(!cur)return;
   const ex=marcasDe(cur)[msgId];
   $("mNome").value=ex?ex.nome:"";$("mTam").value=ex?ex.tamanho||"":"";$("mObs").value=ex?ex.obs||"":"";$("mEst").value=ex?ex.estado||ESTADOS[0]:ESTADOS[0];
+  $("mOrig").value=ex?ex.origem||"":"";mModelo=ex&&ex.modelo?ex.modelo:null;$("mBusca").value="";$("mRes").textContent="";mostrarOrigem();pintarModelo();
   $("mTitulo").textContent=ex?"Pedido #"+ex.n:"Novo pedido #"+proximoN();
   $("mDel").style.display=ex?"":"none";
   $("dlgMarca").dataset.msg=msgId;$("dlgMarca").hidden=false;$("mNome").focus();
@@ -403,7 +444,7 @@ $("fMarca").onsubmit=async e=>{
   e.preventDefault();
   const chatId=cur,msgId=$("dlgMarca").dataset.msg;if(!chatId||!msgId)return;
   const ex=marcasDe(chatId)[msgId],n=ex?ex.n:proximoN();
-  const dados={n,nome:$("mNome").value.trim()||"Pedido "+n,tamanho:$("mTam").value.trim(),obs:$("mObs").value.trim(),estado:$("mEst").value,em:ex?ex.em:Date.now()};
+  const dados={n,nome:$("mNome").value.trim()||"Pedido "+n,tamanho:$("mTam").value.trim(),obs:$("mObs").value.trim(),estado:$("mEst").value,origem:$("mOrig").value,modelo:$("mOrig").value==="catalogo"&&mModelo?{titulo:mModelo.titulo,tema:mModelo.tema||"",url:mModelo.url||""}:null,em:ex?ex.em:Date.now()};
   $("dlgMarca").hidden=true;erro("");
   const corpo={marcas:{[msgId]:dados}};if(!ex)corpo.marcaSeq=n;
   try{await setDoc(doc(db,"chats",chatId),corpo,{merge:true})}catch(err){erro("Não consegui salvar a marcação: "+(err.code||err.message))}
@@ -437,7 +478,7 @@ function desenharPedidos(){
     if(msg&&msg.imagem){const i=document.createElement("img");i.src=msg.imagem;i.alt="Foto do pedido "+m.n;i.onclick=()=>ampliar(msg.imagem);it.appendChild(i)}
     const tx=document.createElement("div");tx.className="tx";
     const b=document.createElement("b");b.textContent="#"+m.n+" "+m.nome;tx.appendChild(b);
-    const sm=document.createElement("small");sm.textContent=[m.tamanho,m.estado||ESTADOS[0],"marcado em "+new Date(m.em||Date.now()).toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit"})].filter(Boolean).join(" · ");tx.appendChild(sm);
+    const sm=document.createElement("small");sm.textContent=[m.tamanho,rotuloOrigem(m),m.estado||ESTADOS[0],"marcado em "+new Date(m.em||Date.now()).toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit"})].filter(Boolean).join(" · ");tx.appendChild(sm);
     if(msg&&!msg.imagem&&msg.texto){const q=document.createElement("small");q.textContent="“"+msg.texto.slice(0,80)+(msg.texto.length>80?"…":"")+"”";tx.appendChild(q)}
     if(m.obs){const o=document.createElement("div");o.className="ob";o.textContent=m.obs;tx.appendChild(o)}
     const bt=document.createElement("div");bt.className="bt";
@@ -548,7 +589,7 @@ function iniciar(){
     if(antes&&novos.some(c=>c.id!==cur&&(c.naoLidas||0)>(antes[c.id]||0)))plim();
     antes={};novos.forEach(c=>{antes[c.id]=c.naoLidas||0});
     chats=novos;
-    desenharLista();desenharFila();verificar();
+    desenharLista();desenharFila();verificar();desenharItens();
   },e=>erro("Não consegui ler as conversas: "+e.code+" (confira as regras do Firestore)"));
 }
 
@@ -954,8 +995,13 @@ async function enviarProduto(p){
   const b=writeBatch(db);
   b.set(doc(collection(db,"chats",cur,"messages")),{de:"loja",tipo:"produto",titulo:p.titulo,url:CATALOGO_URL+p.url,imagem:p.imagem?CATALOGO_URL+p.imagem:"",texto:$("txt").value.trim(),criado:serverTimestamp()});
   b.set(doc(db,"chats",cur),{ultima:"Você: 🛍 "+p.titulo,atualizado:serverTimestamp(),naoLidas:0},{merge:true});
-  try{await b.commit();$("txt").value="";$("busca").value="";$("res").textContent=""}catch(err){erro("Não consegui enviar: "+(err.code||err.message))}
+  try{await b.commit();$("txt").value="";$("busca").value="";$("res").textContent="";$("busca").hidden=true;$("lupa").setAttribute("aria-expanded","false")}catch(err){erro("Não consegui enviar: "+(err.code||err.message))}
 }
+$("lupa").onclick=()=>{
+  const abre=$("busca").hidden;$("busca").hidden=!abre;$("lupa").setAttribute("aria-expanded",String(abre));
+  if(abre)$("busca").focus();else{$("busca").value="";$("res").textContent=""}
+};
+$("busca").addEventListener("keydown",e=>{if(e.key==="Escape"){$("busca").value="";$("res").textContent="";$("busca").hidden=true;$("lupa").setAttribute("aria-expanded","false");$("txt").focus()}});
 $("busca").oninput=()=>{
   const r=$("res");r.textContent="";
   const ws=sem($("busca").value).split(/[^a-z0-9]+/).filter(Boolean);
@@ -968,6 +1014,58 @@ $("busca").oninput=()=>{
   });
   if(!r.children.length)r.textContent=produtos.length?"Nenhum produto encontrado.":"Catálogo ainda não carregou (gere o produtos.json).";
 };
+
+// ---- lista geral: itens marcados em todas as conversas carregadas (as 50 mais recentes) ----
+let itensFeitos=false;
+function itensGerais(){
+  const out=[];
+  chats.forEach(c=>Object.entries(c.marcas||{}).forEach(([mid,m])=>{if(itensFeitos||m.estado!=="Feito")out.push({c,mid,m})}));
+  return out.sort((a,b)=>(a.m.em||0)-(b.m.em||0));
+}
+function gruposItens(L){
+  const g={cat:new Map(),novo:[],nd:[]};
+  L.forEach(x=>{
+    if(x.m.origem==="catalogo"){const k=(x.m.modelo&&x.m.modelo.titulo)||"(modelo não escolhido)";if(!g.cat.has(k))g.cat.set(k,[]);g.cat.get(k).push(x)}
+    else if(x.m.origem==="novo")g.novo.push(x);
+    else g.nd.push(x);
+  });
+  return g;
+}
+const linhaItem=x=>(x.c.nome||"cliente")+" · #"+x.m.n+" "+x.m.nome+(x.m.tamanho?" · "+x.m.tamanho:"")+" · "+(x.m.estado||ESTADOS[0]);
+function secoesItens(g){
+  const s=[];
+  [...g.cat.keys()].sort((a,b)=>a.localeCompare(b,"pt-BR")).forEach(k=>s.push(["📖 "+k,g.cat.get(k)]));
+  if(g.novo.length)s.push(["🆕 Novos (logomarca / criação)",g.novo]);
+  if(g.nd.length)s.push(["❔ Sem origem definida",g.nd]);
+  return s;
+}
+async function copiarItens(){
+  const S=secoesItens(gruposItens(itensGerais()));
+  const t="Itens para organizar\n"+S.map(([t,a])=>"\n"+t+" ("+a.length+")\n"+a.map(x=>"  • "+linhaItem(x)+(x.m.obs?" — "+x.m.obs.replace(/\n/g," "):"")).join("\n")).join("\n");
+  try{await navigator.clipboard.writeText(S.length?t:"Nenhum item marcado.");avisoRapido("✔ Lista copiada.")}catch(e){erro("Não consegui copiar a lista.")}
+}
+function desenharItens(){
+  const box=$("itens"),L=itensGerais();
+  $("itensBtn").textContent="📌 Itens"+(L.length?" ("+L.length+")":"");
+  if(!box.classList.contains("on"))return;
+  box.textContent="";
+  const topo=document.createElement("div");topo.className="topo";
+  const info=document.createElement("span");info.textContent=L.length+(L.length===1?" item":" itens")+(itensFeitos?" (com os feitos)":" para organizar")+" · "+chats.length+" conversas recentes";
+  topo.append(info,btn(itensFeitos?"Ocultar feitos":"Mostrar feitos",()=>{itensFeitos=!itensFeitos;desenharItens()}),btn("Copiar lista",copiarItens));
+  box.appendChild(topo);
+  if(!L.length){const v=document.createElement("div");v.className="vazio";v.textContent="Nenhum item marcado. Use o 📌 Marcar numa mensagem da conversa.";box.appendChild(v);return}
+  secoesItens(gruposItens(L)).forEach(([titulo,arr])=>{
+    const h=document.createElement("h3");h.textContent=titulo+" ("+arr.length+")";box.appendChild(h);
+    arr.forEach(x=>{
+      const row=document.createElement("div");row.className="a";
+      const sp=document.createElement("span");sp.textContent=linhaItem(x);
+      if(x.m.obs){const o=document.createElement("small");o.textContent=x.m.obs;sp.appendChild(o)}
+      row.append(sp,btn("Abrir",()=>{abrir(x.c.id);box.classList.remove("on");$("itensBtn").setAttribute("aria-expanded","false")}));
+      box.appendChild(row);
+    });
+  });
+}
+$("itensBtn").onclick=()=>{const on=$("itens").classList.toggle("on");$("itensBtn").setAttribute("aria-expanded",String(on));desenharItens()};
 
 onAuthStateChanged(auth,u=>{
   if(u&&u.email)iniciar();
