@@ -87,7 +87,7 @@ button.mic{background:none;color:var(--berry);padding:0}
 #res img{width:36px;height:36px;object-fit:cover;border-radius:6px}
 #sit{display:none;font:inherit;font-size:.8rem;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:8px;padding:3px 6px}
 .m a:not(.pc){color:inherit;text-decoration:underline;word-break:break-all}
-#renBtn,#lembBtn{display:none;background:none;color:var(--berry);border:1px solid var(--line);padding:4px 10px;font-weight:500;font-size:.85rem}
+#renBtn,#lembBtn,#pedBtn{display:none;background:none;color:var(--berry);border:1px solid var(--line);padding:4px 10px;font-weight:500;font-size:.85rem}
 #lemb{margin:0 0 8px;padding:10px;border:1px solid var(--line);border-radius:12px;background:var(--bg);display:flex;flex-direction:column;gap:8px}
 #lemb[hidden]{display:none}
 #lemb .ch,#lemb .lin{display:flex;flex-wrap:wrap;gap:6px}
@@ -121,6 +121,36 @@ button.mic{background:none;color:var(--berry);padding:0}
 #alertas .a span{flex:1;min-width:160px}
 #alertas button{padding:4px 10px;font-size:.85rem;background:#2A1F2D;color:#fff}
 #alertas button.sec{background:none;color:#2A1F2D;border:1px solid #2A1F2D}
+
+/* ---- pedidos marcados ---- */
+.m button.marca{display:block;width:100%;text-align:left;margin:0 0 6px;padding:4px 10px;border-radius:999px;background:var(--butter);color:#2A1F2D;font-size:.8rem;font-weight:700}
+.m button.btMarca{display:inline-block;margin-top:4px;padding:2px 8px;border-radius:999px;background:none;color:inherit;border:1px dashed currentColor;font-size:.72rem;font-weight:500;opacity:.75}
+@media(hover:hover){.m button.btMarca{opacity:0}.m:hover button.btMarca,.m button.btMarca:focus-visible{opacity:.8}}
+.m.marcada{outline:2px solid var(--butter);outline-offset:1px}
+.m.flash{animation:pisca 1.6s}
+@keyframes pisca{0%,60%{box-shadow:0 0 0 6px var(--butter)}100%{box-shadow:0 0 0 0 transparent}}
+#pedidos{margin:0 0 8px;padding:10px;border:1px solid var(--line);border-radius:12px;background:var(--bg);display:flex;flex-direction:column;gap:8px;max-height:40vh;overflow:auto}
+#pedidos[hidden]{display:none}
+#pedidos .topo{display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:space-between}
+#pedidos .topo button{background:none;color:var(--berry);border:1px solid var(--line);padding:4px 10px;font-weight:500;font-size:.85rem}
+#pedidos .it{display:flex;gap:8px;align-items:flex-start;padding:8px;border:1px solid var(--line);border-radius:10px;background:var(--surf)}
+#pedidos .it img{width:56px;height:56px;object-fit:cover;border-radius:8px;cursor:zoom-in;flex:none}
+#pedidos .it .tx{flex:1;min-width:0;font-size:.9rem}
+#pedidos .it small{display:block;color:var(--mute)}
+#pedidos .it .ob{white-space:pre-wrap;word-wrap:break-word}
+#pedidos .it .bt{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
+#pedidos .it .bt button{background:none;color:var(--berry);border:1px solid var(--line);padding:3px 10px;font-weight:500;font-size:.8rem}
+#pedidos .vazio{color:var(--mute);font-size:.9rem}
+#dlgMarca{position:fixed;inset:0;z-index:30;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:16px}
+#dlgMarca[hidden]{display:none}
+#fMarca{background:var(--surf);color:var(--ink);border-radius:16px;padding:16px;width:min(420px,100%);max-height:100%;overflow:auto;display:flex;flex-direction:column;gap:10px}
+#fMarca label{display:flex;flex-direction:column;gap:4px;font-size:.85rem;color:var(--mute)}
+#fMarca input,#fMarca textarea,#fMarca select{font:inherit;color:var(--ink)}
+#fMarca select{border:1px solid var(--line);background:var(--bg);border-radius:10px;padding:10px 12px}
+#fMarca .lin{display:flex;flex-wrap:wrap;gap:6px}
+#fMarca .sec{background:none;color:var(--berry);border:1px solid var(--line)}
+#fMarca #mDel{background:none;color:#B3261E;border:1px solid var(--line);font-weight:400}
+@media(prefers-color-scheme:dark){#fMarca #mDel{color:#F2B8B5}}
 </style>
 </head>
 <body>
@@ -135,7 +165,8 @@ button.mic{background:none;color:var(--berry);padding:0}
 <div id="resumo" role="region" aria-label="Pendências de atendimento"></div>
 <div class="cols">
 <div id="list"></div>
-<div class="conv"><div class="titulo"><span id="titulo">Nenhuma conversa aberta</span><select id="sit" aria-label="Situação da conversa"></select><button id="renBtn" type="button">✏️ Renomear</button><button id="lembBtn" type="button" aria-expanded="false" aria-controls="lemb">⏰ Lembrete</button><button id="apagar" type="button">🗑 Apagar</button></div>
+<div class="conv"><div class="titulo"><span id="titulo">Nenhuma conversa aberta</span><select id="sit" aria-label="Situação da conversa"></select><button id="renBtn" type="button">✏️ Renomear</button><button id="pedBtn" type="button" aria-expanded="false" aria-controls="pedidos">📌 Pedidos</button><button id="lembBtn" type="button" aria-expanded="false" aria-controls="lemb">⏰ Lembrete</button><button id="apagar" type="button">🗑 Apagar</button></div>
+<div id="pedidos" hidden role="region" aria-label="Pedidos marcados nesta conversa"></div>
 <div id="lemb" hidden><input id="lembTexto" placeholder="O que preciso devolver a ela? (opcional)" maxlength="120" autocomplete="off" aria-label="Anotação do lembrete"><div class="ch" id="lembRap"></div><div class="lin"><input id="lembQuando" type="datetime-local" aria-label="Data e hora do lembrete"><button id="lembOk" type="button">Agendar</button><button id="lembDel" type="button">Remover</button></div></div><div id="msgs" aria-live="polite"><p class="empty">Escolha uma conversa.</p></div>
 <div id="rap"></div><input id="busca" placeholder="🔎 Buscar produto do catálogo para enviar (ex.: astro)" autocomplete="off" aria-label="Buscar produto"><div id="res"></div>
 <div id="aviso"></div>
@@ -144,11 +175,12 @@ button.mic{background:none;color:var(--berry);padding:0}
 </div>
 </div>
 </div>
+<div id="dlgMarca" role="dialog" aria-modal="true" aria-labelledby="mTitulo" hidden><form id="fMarca"><b id="mTitulo"></b><label>Nome do pedido<input id="mNome" maxlength="60" autocomplete="off" placeholder="ex.: Logomarca DV (pode deixar em branco)"></label><label>Tamanho<input id="mTam" maxlength="30" autocomplete="off" placeholder="ex.: 5 cm"></label><label>Observações<textarea id="mObs" rows="3" maxlength="500" placeholder="ex.: sem o texto, cliente quer só o símbolo"></textarea></label><label>Estado<select id="mEst"></select></label><div class="lin"><button>Salvar</button><button type="button" class="sec" id="mCan">Cancelar</button><button type="button" id="mDel">Remover marcação</button></div></form></div>
 <div id="zoom" role="dialog" aria-label="Foto ampliada"><img alt="Foto ampliada"></div>
 <script type="module">
 import {initializeApp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {getAuth,signInWithEmailAndPassword,signOut,onAuthStateChanged} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import {getFirestore,doc,setDoc,getDocs,deleteDoc,collection,query,orderBy,limit,onSnapshot,serverTimestamp,writeBatch,getDoc,arrayUnion,arrayRemove} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import {getFirestore,doc,setDoc,getDocs,deleteDoc,collection,query,orderBy,limit,onSnapshot,serverTimestamp,writeBatch,getDoc,arrayUnion,arrayRemove,deleteField} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import {firebaseConfig} from "./firebase-config.js";
 import {CATALOGO_URL,RESPOSTAS,SITUACOES} from "./loja-config.js";
 
@@ -333,6 +365,92 @@ function desenharFila(){
 $("filaBtn").onclick=()=>{const on=$("fila").classList.toggle("on");$("filaBtn").setAttribute("aria-expanded",String(on))};
 
 let tAviso;
+
+// ---- Pedidos marcados: 📌 em qualquer mensagem (foto ou texto) com número, nome, tamanho e observações ----
+// Fica só no seu painel: é gravado no documento da conversa (campo "marcas") e a cliente nunca vê.
+const ESTADOS=["Aberto","Em criação","Feito"];
+let cache={};
+const marcasDe=id=>{const c=chats.find(x=>x.id===id);return (c&&c.marcas)||{}};
+const listaMarcas=id=>Object.entries(marcasDe(id)).map(([mid,m])=>({mid,...m})).sort((a,b)=>a.n-b.n);
+function proximoN(){const c=chats.find(x=>x.id===cur);return Math.max((c&&c.marcaSeq)||0,0,...listaMarcas(cur).map(m=>m.n))+1}
+const textoMarca=m=>"#"+m.n+" "+m.nome+(m.tamanho?" · "+m.tamanho:"")+(m.estado&&m.estado!=="Aberto"?" · "+m.estado:"");
+function pintarMarca(el,msgId){
+  el.querySelectorAll(".marca,.btMarca").forEach(x=>x.remove());
+  const m=marcasDe(cur)[msgId];
+  el.classList.toggle("marcada",!!m);
+  const b=document.createElement("button");b.type="button";
+  if(m){b.className="marca";b.textContent="📌 "+textoMarca(m);b.setAttribute("aria-label","Editar o pedido "+m.n);el.insertBefore(b,el.firstChild)}
+  else{b.className="btMarca";b.textContent="📌 Marcar";b.setAttribute("aria-label","Marcar esta mensagem como pedido");el.appendChild(b)}
+  b.onclick=()=>abrirMarca(msgId);
+}
+function aplicarMarcas(){
+  document.querySelectorAll("#msgs .m[data-id]").forEach(el=>pintarMarca(el,el.dataset.id));
+  desenharPedidos();
+}
+function abrirMarca(msgId){
+  if(!cur)return;
+  const ex=marcasDe(cur)[msgId];
+  $("mNome").value=ex?ex.nome:"";$("mTam").value=ex?ex.tamanho||"":"";$("mObs").value=ex?ex.obs||"":"";$("mEst").value=ex?ex.estado||ESTADOS[0]:ESTADOS[0];
+  $("mTitulo").textContent=ex?"Pedido #"+ex.n:"Novo pedido #"+proximoN();
+  $("mDel").style.display=ex?"":"none";
+  $("dlgMarca").dataset.msg=msgId;$("dlgMarca").hidden=false;$("mNome").focus();
+}
+ESTADOS.forEach(e=>{const o=document.createElement("option");o.value=o.textContent=e;$("mEst").appendChild(o)});
+$("mCan").onclick=()=>{$("dlgMarca").hidden=true};
+document.addEventListener("keydown",e=>{if(e.key==="Escape")$("dlgMarca").hidden=true});
+$("dlgMarca").addEventListener("pointerdown",e=>{if(e.target===$("dlgMarca"))$("dlgMarca").hidden=true});
+$("fMarca").onsubmit=async e=>{
+  e.preventDefault();
+  const chatId=cur,msgId=$("dlgMarca").dataset.msg;if(!chatId||!msgId)return;
+  const ex=marcasDe(chatId)[msgId],n=ex?ex.n:proximoN();
+  const dados={n,nome:$("mNome").value.trim()||"Pedido "+n,tamanho:$("mTam").value.trim(),obs:$("mObs").value.trim(),estado:$("mEst").value,em:ex?ex.em:Date.now()};
+  $("dlgMarca").hidden=true;erro("");
+  const corpo={marcas:{[msgId]:dados}};if(!ex)corpo.marcaSeq=n;
+  try{await setDoc(doc(db,"chats",chatId),corpo,{merge:true})}catch(err){erro("Não consegui salvar a marcação: "+(err.code||err.message))}
+};
+$("mDel").onclick=async()=>{
+  const chatId=cur,msgId=$("dlgMarca").dataset.msg;if(!chatId||!msgId)return;
+  if(!confirm("Remover esta marcação? A mensagem continua na conversa."))return;
+  $("dlgMarca").hidden=true;erro("");
+  try{await setDoc(doc(db,"chats",chatId),{marcas:{[msgId]:deleteField()}},{merge:true})}catch(err){erro("Não consegui remover: "+(err.code||err.message))}
+};
+function verNaConversa(mid){
+  $("pedidos").hidden=true;$("pedBtn").setAttribute("aria-expanded","false");
+  const el=document.querySelector('#msgs .m[data-id="'+mid+'"]');
+  if(el){el.scrollIntoView({block:"center"});el.classList.remove("flash");void el.offsetWidth;el.classList.add("flash")}
+}
+function copiarResumo(){
+  const c=chats.find(x=>x.id===cur),L=listaMarcas(cur);
+  const t="Pedidos de "+((c&&c.nome)||"cliente")+"\n"+L.map(m=>"\n"+textoMarca(m)+(m.obs?"\n   "+m.obs.replace(/\n/g,"\n   "):"")).join("\n");
+  navigator.clipboard.writeText(t).then(()=>avisoRapido("✔ Resumo copiado."),()=>erro("Não consegui copiar."));
+}
+function desenharPedidos(){
+  const p=$("pedidos");if(p.hidden||!cur)return;
+  p.innerHTML="";
+  const L=listaMarcas(cur),top=document.createElement("div");top.className="topo";
+  const t=document.createElement("b");t.textContent=L.length?"📌 "+L.length+(L.length===1?" item marcado":" itens marcados"):"📌 Nada marcado ainda";top.appendChild(t);
+  if(L.length)top.appendChild(btn("📋 Copiar resumo",copiarResumo));
+  p.appendChild(top);
+  if(!L.length){const v=document.createElement("div");v.className="vazio";v.textContent="Toque em “📌 Marcar” numa mensagem (no computador ele aparece ao passar o mouse) para destacar um pedido e anotar nome, tamanho e observações.";p.appendChild(v)}
+  L.forEach(m=>{
+    const msg=cache[m.mid],it=document.createElement("div");it.className="it";
+    if(msg&&msg.imagem){const i=document.createElement("img");i.src=msg.imagem;i.alt="Foto do pedido "+m.n;i.onclick=()=>ampliar(msg.imagem);it.appendChild(i)}
+    const tx=document.createElement("div");tx.className="tx";
+    const b=document.createElement("b");b.textContent="#"+m.n+" "+m.nome;tx.appendChild(b);
+    const sm=document.createElement("small");sm.textContent=[m.tamanho,m.estado||ESTADOS[0],"marcado em "+new Date(m.em||Date.now()).toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit"})].filter(Boolean).join(" · ");tx.appendChild(sm);
+    if(msg&&!msg.imagem&&msg.texto){const q=document.createElement("small");q.textContent="“"+msg.texto.slice(0,80)+(msg.texto.length>80?"…":"")+"”";tx.appendChild(q)}
+    if(m.obs){const o=document.createElement("div");o.className="ob";o.textContent=m.obs;tx.appendChild(o)}
+    const bt=document.createElement("div");bt.className="bt";
+    bt.appendChild(btn("Ver na conversa",()=>verNaConversa(m.mid)));
+    bt.appendChild(btn("Editar",()=>abrirMarca(m.mid)));
+    tx.appendChild(bt);it.appendChild(tx);p.appendChild(it);
+  });
+}
+$("pedBtn").onclick=()=>{
+  const abre=$("pedidos").hidden;$("pedidos").hidden=!abre;$("pedBtn").setAttribute("aria-expanded",String(abre));
+  if(abre)desenharPedidos();
+};
+
 function avisoRapido(t){aviso(t);clearTimeout(tAviso);tAviso=setTimeout(()=>aviso(""),12000)}
 function fecharMenuFoto(){const m=$("menuFoto");if(m)m.remove()}
 function abrirMenuFoto(x,y,img,msgId){
@@ -367,6 +485,7 @@ function desenharLista(){
     const w=document.createElement("div");w.innerHTML="<b></b><small></small>";
     w.firstChild.textContent=c.nome||"Cliente";w.lastChild.textContent=(c.situacao?"["+c.situacao+"] ":"")+(c.ultima||"");
     if(c.lembreteEm){const lm=document.createElement("small");lm.className=c.lembreteEm<=Date.now()?"lemb-due":"lemb-on";lm.textContent="⏰ "+fmtLemb(c.lembreteEm)+(c.lembreteTexto?" · "+c.lembreteTexto:"");w.appendChild(lm)}
+    const nm=Object.keys(c.marcas||{}).length;if(nm){const pm=document.createElement("small");pm.textContent="📌 "+nm+(nm===1?" pedido":" pedidos");w.appendChild(pm)}
     b.appendChild(w);
     if(c.naoLidas&&c.id!==cur){const s=document.createElement("span");s.className="badge";s.textContent=c.naoLidas;b.appendChild(s)}
     b.onclick=()=>abrir(c.id);
@@ -375,14 +494,14 @@ function desenharLista(){
   if(!chats.length)l.innerHTML='<p class="empty" style="padding:16px">Nenhuma conversa ainda.</p>';
   if(cur){const cc=chats.find(x=>x.id===cur);if(cc){$("sit").value=cc.situacao||"";$("lembBtn").textContent=cc.lembreteEm?"⏰ "+fmtLemb(cc.lembreteEm):"⏰ Lembrete"}}
   $("count").textContent=aguardando?aguardando+" aguardando resposta":"Tudo respondido";
-  desenharResumo();
+  desenharResumo();aplicarMarcas();
   document.title=(venc?"⏰ ":"")+(aguardando?"("+aguardando+") Painel de atendimento":"Painel de atendimento");
 }
 
 function abrir(id){
   if(id!==cur)gravador.descartar();
   cur=id;
-  $("apagar").style.display="inline-block";$("sit").style.display="inline-block";$("renBtn").style.display="inline-block";$("lembBtn").style.display="inline-block";$("lemb").hidden=true;$("lembBtn").setAttribute("aria-expanded","false");
+  $("apagar").style.display="inline-block";$("sit").style.display="inline-block";$("renBtn").style.display="inline-block";$("pedBtn").style.display="inline-block";$("pedidos").hidden=true;$("pedBtn").setAttribute("aria-expanded","false");$("lembBtn").style.display="inline-block";$("lemb").hidden=true;$("lembBtn").setAttribute("aria-expanded","false");
   if(offMsgs)offMsgs();
   const c0=chats.find(c=>c.id===id);$("titulo").textContent=c0?(c0.nome||"Cliente"):"";
   setDoc(doc(db,"chats",id),{naoLidas:0},{merge:true});
@@ -392,7 +511,7 @@ function abrir(id){
     // conversa aberta: toca quando chega mensagem nova do cliente
     if(!primeira&&snap.docChanges().some(ch=>ch.type==="added"&&!ch.doc.metadata.hasPendingWrites&&ch.doc.data().de==="cliente"))plim();
     primeira=false;
-    const box=$("msgs");box.innerHTML="";
+    const box=$("msgs");box.innerHTML="";cache={};
     snap.forEach(d=>{
       const m=d.data(),el=document.createElement("div");
       el.className="m "+(m.de==="loja"?"me":"other")+(m.interno?" int":"");
@@ -408,6 +527,7 @@ function abrir(id){
       if(m.texto)el.appendChild(comLinks(m.texto));
       if(m.de==="cliente"&&m.texto&&m.texto.startsWith("🛒 Pedido do catálogo"))el.appendChild(botaoCopiar(m.texto,id));
       const s=document.createElement("small");s.textContent=hora(m.criado);el.appendChild(s);
+      cache[d.id]=m;el.dataset.id=d.id;pintarMarca(el,d.id);
       box.appendChild(el);
     });
     box.scrollTop=box.scrollHeight;
@@ -632,7 +752,7 @@ $("apagar").onclick=async()=>{
   try{
     if(offMsgs){offMsgs();offMsgs=null}
     cur=null;gravador.descartar();
-    $("titulo").textContent="Nenhuma conversa aberta";$("apagar").style.display="none";$("sit").style.display="none";$("renBtn").style.display="none";$("lembBtn").style.display="none";$("lemb").hidden=true;
+    $("titulo").textContent="Nenhuma conversa aberta";$("apagar").style.display="none";$("sit").style.display="none";$("renBtn").style.display="none";$("pedBtn").style.display="none";$("pedidos").hidden=true;$("lembBtn").style.display="none";$("lemb").hidden=true;
     $("msgs").innerHTML='<p class="empty">Escolha uma conversa.</p>';
     const snap=await getDocs(collection(db,"chats",id,"messages"));
     let b=writeBatch(db),n=0;
