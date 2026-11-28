@@ -704,6 +704,39 @@ $("arq").onchange=async()=>{
   aviso("");
 };
 
+// ---- Clipe abre direto na pasta da cliente (Chrome/Edge no computador) ----
+// Usa a mesma pasta "Clientes" já configurada para salvar logomarcas e procura a subpasta com o nome da conversa
+// (o nome que você define em ✏️ Renomear; maiúsculas, acentos e espaços extras não atrapalham).
+async function pastaDaCliente(){
+  const h=await lerPasta();if(!h)return null;
+  if(await h.queryPermission({mode:"read"})!=="granted"&&await h.requestPermission({mode:"read"})!=="granted")return null;
+  const c=chats.find(x=>x.id===cur),nome=nomeSeguro((c&&c.nome)||"");
+  if(nome)for await(const [n,x] of h.entries())if(x.kind==="directory"&&chaveNome(n)===chaveNome(nome))return {h:x,achou:true,nome};
+  return {h,achou:false,nome};
+}
+function clipeNaPasta(inputId,tipos){
+  const input=$(inputId),label=input.closest("label");
+  label.addEventListener("click",async e=>{
+    if(!window.showOpenFilePicker||!cur)return; // sem suporte ou sem conversa: segue o jeito normal
+    e.preventDefault();erro("");
+    let ini=null;
+    try{ini=await pastaDaCliente()}catch(err){}
+    if(!ini){
+      try{await pastaClientes();avisoRapido("✔ Pasta Clientes configurada. Toque no clipe de novo.")}
+      catch(err){if(err.name!=="AbortError")erro("Não consegui abrir a pasta Clientes: "+(err.message||err.name))}
+      return;
+    }
+    if(!ini.achou)avisoRapido("Não achei a pasta “"+ini.nome+"” em Clientes: abri a pasta Clientes.");
+    try{
+      const [fh]=await showOpenFilePicker({startIn:ini.h,types:tipos});
+      const f=await fh.getFile(),dt=new DataTransfer();
+      dt.items.add(f);input.files=dt.files;input.onchange();
+    }catch(err){if(err.name!=="AbortError")input.click()}
+  });
+}
+clipeNaPasta("foto",[{description:"Imagens",accept:{"image/*":[".png",".jpg",".jpeg",".webp",".gif",".bmp"]}}]);
+clipeNaPasta("arq",[{description:"Arquivos",accept:{"image/*":[".svg",".png",".jpg",".jpeg"],"application/octet-stream":[".pdf",".zip",".stl",".gcode",".dxf",".txt"]}}]);
+
 $("foto").onchange=async()=>{
   const file=$("foto").files[0];$("foto").value="";
   if(!file)return;
