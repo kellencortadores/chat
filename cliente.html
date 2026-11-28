@@ -226,6 +226,7 @@ function desenhar(){
   ultimoOrc=null;
   const box=$("msgs");box.innerHTML="";
   ultimo.forEach(d=>{
+    if(d.data().interno)return; // arquivos que a loja guarda para si
     const m=d.data(),el=document.createElement("div");
     el.className="m "+(m.de==="cliente"?"me":"other");
     if(m.tipo==="produto"&&m.de==="loja"&&okUrl(m.url)&&okUrl(m.imagem)){el.appendChild(cartao(m.titulo,m.url,m.imagem))}else if(m.imagem){
@@ -263,7 +264,7 @@ function escutar(){
   let primeira=true;
   onSnapshot(q,snap=>{
     // toca quando chega mensagem nova da loja
-    if(!primeira&&snap.docChanges().some(ch=>ch.type==="added"&&!ch.doc.metadata.hasPendingWrites&&ch.doc.data().de==="loja"))plim();
+    if(!primeira&&snap.docChanges().some(ch=>ch.type==="added"&&!ch.doc.metadata.hasPendingWrites&&ch.doc.data().de==="loja"&&!ch.doc.data().interno))plim();
     primeira=false;
     ultimo=snap;desenhar();
   },e=>erro("Não consegui carregar a conversa: "+e.code));

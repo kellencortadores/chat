@@ -43,6 +43,10 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--butter);outline
 @media(prefers-color-scheme:dark){#apagar{color:#F2B8B5}}
 #msgs{flex:1;overflow:auto;display:flex;flex-direction:column;gap:6px;max-height:460px}
 .m{max-width:80%;padding:8px 11px;border-radius:16px;word-wrap:break-word;white-space:pre-wrap}
+.m.int{border:2px dashed var(--berry,#8C2F5C)}
+.m .tagint{display:block;font-size:.72rem;opacity:.8;margin-bottom:4px}
+.m .arq img{background:#fff;object-fit:contain;cursor:default;width:220px;max-height:200px}
+.m .arq .bt{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
 .m small{display:block;opacity:.65;font-size:.7rem;margin-top:2px}
 .m img{display:block;width:260px;max-width:100%;max-height:320px;object-fit:cover;border-radius:10px;cursor:zoom-in;margin-bottom:4px}
 .me{align-self:flex-end;background:var(--berry);color:#fff;border-bottom-right-radius:4px}
@@ -124,7 +128,7 @@ button.mic{background:none;color:var(--berry);padding:0}
 <div id="rap"></div><input id="busca" placeholder="🔎 Buscar produto do catálogo para enviar (ex.: astro)" autocomplete="off" aria-label="Buscar produto"><div id="res"></div>
 <div id="aviso"></div>
 <div id="grav" aria-live="polite"></div>
-<form id="f"><label class="clip" aria-label="Enviar foto"><input id="foto" class="sr" type="file" accept="image/*"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg></label><button class="clip mic" id="mic" type="button" aria-label="Gravar áudio" title="Gravar áudio"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10v1a7 7 0 0 0 14 0v-1M12 18v4"/></svg></button><input id="txt" placeholder="Responder" autocomplete="off" aria-label="Sua resposta"><button>Responder</button></form></div>
+<form id="f"><label class="clip" aria-label="Enviar foto"><input id="foto" class="sr" type="file" accept="image/*"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg></label><label class="clip" aria-label="Guardar arquivo na conversa (a cliente não vê)" title="Guardar arquivo na conversa — só você vê"><input id="arq" class="sr" type="file" accept=".svg,.pdf,.zip,.stl,.gcode,.dxf,.txt,.png,.jpg,.jpeg"><span aria-hidden="true">🗂</span></label><button class="clip mic" id="mic" type="button" aria-label="Gravar áudio" title="Gravar áudio"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10v1a7 7 0 0 0 14 0v-1M12 18v4"/></svg></button><input id="txt" placeholder="Responder" autocomplete="off" aria-label="Sua resposta"><button>Responder</button></form></div>
 </div>
 </div>
 </div>
@@ -378,7 +382,9 @@ function abrir(id){
     const box=$("msgs");box.innerHTML="";
     snap.forEach(d=>{
       const m=d.data(),el=document.createElement("div");
-      el.className="m "+(m.de==="loja"?"me":"other");
+      el.className="m "+(m.de==="loja"?"me":"other")+(m.interno?" int":"");
+      if(m.interno){const tg=document.createElement("span");tg.className="tagint";tg.textContent="🔒 Só você vê (a cliente não recebe)";el.appendChild(tg)}
+      if(m.arquivo&&typeof m.arquivo.dados==="string")el.appendChild(cartaoArquivo(m.arquivo,id,d.id));
       if(m.tipo==="produto"&&okUrl(m.url)&&(!m.imagem||okUrl(m.imagem))){el.appendChild(cartao(m.titulo,m.url,m.imagem))}else if(m.imagem){
         const i=document.createElement("img");i.src=m.imagem;i.alt="Foto enviada";
         i.onclick=()=>ampliar(m.imagem);i.onload=()=>{box.scrollTop=box.scrollHeight};
@@ -526,6 +532,44 @@ const gravador=criarGravador({
     await b.commit();
   }
 });
+
+// ---- arquivo interno (SVG etc.): fica na conversa, só aparece no painel; baixe no outro computador ----
+function cartaoArquivo(a,chatId,msgId){
+  const box=document.createElement("div");box.className="arq";
+  if(/^data:image\//.test(a.dados)){const i=document.createElement("img");i.src=a.dados;i.alt="Prévia de "+a.nome;box.appendChild(i)}
+  const kb=Math.max(1,Math.round(a.dados.length*0.75/1024));
+  const t=document.createElement("div");t.textContent="📎 "+a.nome+" ("+kb+" KB)";box.appendChild(t);
+  const bt=document.createElement("div");bt.className="bt";
+  bt.append(
+    btn("⬇ Baixar",async()=>{
+      try{
+        const {mime,bytes}=await bytesDaFoto(a.dados);
+        const u=URL.createObjectURL(new Blob([bytes],{type:a.tipo||mime})),l=document.createElement("a");
+        l.href=u;l.download=a.nome;document.body.appendChild(l);l.click();l.remove();
+        setTimeout(()=>URL.revokeObjectURL(u),10000);
+      }catch(e){erro("Não consegui baixar: "+(e.message||e.name))}
+    },"copiar"),
+    btn("🗑 Remover",async()=>{
+      if(!confirm('Remover "'+a.nome+'" da conversa?'))return;
+      try{await deleteDoc(doc(db,"chats",chatId,"messages",msgId))}catch(e){erro("Não consegui remover: "+(e.code||e.message))}
+    },"copiar"));
+  box.appendChild(bt);
+  return box;
+}
+$("arq").onchange=async()=>{
+  const file=$("arq").files[0];$("arq").value="";
+  if(!file)return;
+  if(!cur){erro("Escolha uma conversa na lista antes de guardar o arquivo.");return}
+  erro("");aviso("Guardando arquivo…");
+  try{
+    const dados=await new Promise((ok,no)=>{const r=new FileReader();r.onload=()=>ok(r.result);r.onerror=()=>no(new Error("não consegui ler o arquivo"));r.readAsDataURL(file)});
+    if(dados.length>900000)throw new Error("arquivo grande demais ("+Math.round(file.size/1024)+" KB). O limite é cerca de 650 KB");
+    const tipo=file.type||(/\.svg$/i.test(file.name)?"image/svg+xml":"application/octet-stream");
+    // não mexe em "ultima" nem em "naoLidas": é só uma anotação sua
+    await setDoc(doc(collection(db,"chats",cur,"messages")),{de:"loja",interno:true,arquivo:{nome:file.name,tipo,dados},criado:serverTimestamp()});
+  }catch(err){erro("Não consegui guardar o arquivo: "+(err.code||err.message))}
+  aviso("");
+};
 
 $("foto").onchange=async()=>{
   const file=$("foto").files[0];$("foto").value="";
