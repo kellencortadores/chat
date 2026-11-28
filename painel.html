@@ -156,6 +156,12 @@ button#lupa{font-size:1.15rem}
 #pedidos .it .bt{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
 #pedidos .it .bt button{background:none;color:var(--berry);border:1px solid var(--line);padding:3px 10px;font-weight:500;font-size:.8rem}
 #pedidos .vazio{color:var(--mute);font-size:.9rem}
+#pedidos .env{display:flex;flex-direction:column;gap:8px;padding:10px;border:2px solid var(--berry);border-radius:10px;background:var(--surf)}
+#pedidos .env .ch{display:flex;flex-wrap:wrap;gap:6px}
+#pedidos .env button.sec{background:none;color:var(--berry);border:1px solid var(--line)}
+#pedidos .env button[aria-pressed=true]{outline:3px solid var(--butter)}
+#pedidos .env label{display:flex;gap:6px;align-items:center;font-size:.9rem}
+#pedidos .env small{color:var(--mute)}
 #dlgMarca{position:fixed;inset:0;z-index:30;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:16px}
 #dlgMarca[hidden]{display:none}
 #fMarca{background:var(--surf);color:var(--ink);border-radius:16px;padding:16px;width:min(420px,100%);max-height:100%;overflow:auto;display:flex;flex-direction:column;gap:10px}
@@ -191,7 +197,7 @@ button#lupa{font-size:1.15rem}
 </div>
 </div>
 </div>
-<div id="dlgMarca" role="dialog" aria-modal="true" aria-labelledby="mTitulo" hidden><form id="fMarca"><b id="mTitulo"></b><label>Nome do pedido<input id="mNome" maxlength="60" autocomplete="off" placeholder="ex.: Logomarca DV (pode deixar em branco)"></label><div class="lin" id="mEnvio"><span style="font-size:.85rem;color:var(--mute);align-self:center">Envio:</span><button type="button" class="sec" data-env="SEDEX">SEDEX</button><button type="button" class="sec" data-env="PAC">PAC</button><button type="button" class="sec" data-env="FRETE">Frete</button></div><label>Origem<select id="mOrig"><option value="">Não definido</option><option value="catalogo">Do catálogo</option><option value="novo">Novo (logomarca / criação)</option></select></label><div id="mCat" hidden><input id="mBusca" placeholder="🔎 Buscar modelo do catálogo (ex.: rena)" autocomplete="off" aria-label="Buscar modelo do catálogo"><div id="mRes"></div><div id="mSel"></div><div id="mItens" hidden><label>Modelo e tamanho do catálogo<select id="mItem"></select></label></div></div><label>Tamanho<input id="mTam" maxlength="30" autocomplete="off" placeholder="ex.: 5 cm"></label><label>Preço (R$)<input id="mPreco" inputmode="decimal" autocomplete="off" maxlength="9" pattern="\d+([.,]\d{1,2})?" title="Só números, ex.: 22,00" placeholder="ex.: 22,00 (em branco se ainda não souber)"></label><label>Observações<textarea id="mObs" rows="3" maxlength="500" placeholder="ex.: sem o texto, cliente quer só o símbolo"></textarea></label><label>Estado<select id="mEst"></select></label><div class="lin"><button>Salvar</button><button type="button" class="sec" id="mCan">Cancelar</button><button type="button" id="mDel">Remover marcação</button></div></form></div>
+<div id="dlgMarca" role="dialog" aria-modal="true" aria-labelledby="mTitulo" hidden><form id="fMarca"><b id="mTitulo"></b><label>Nome do pedido<input id="mNome" maxlength="60" autocomplete="off" placeholder="ex.: Logomarca DV (pode deixar em branco)"></label><label>Origem<select id="mOrig"><option value="">Não definido</option><option value="catalogo">Do catálogo</option><option value="novo">Novo (logomarca / criação)</option></select></label><div id="mCat" hidden><input id="mBusca" placeholder="🔎 Buscar modelo do catálogo (ex.: rena)" autocomplete="off" aria-label="Buscar modelo do catálogo"><div id="mRes"></div><div id="mSel"></div><div id="mItens" hidden><label>Modelo e tamanho do catálogo<select id="mItem"></select></label></div></div><label>Tamanho<input id="mTam" maxlength="30" autocomplete="off" placeholder="ex.: 5 cm"></label><label>Preço (R$)<input id="mPreco" inputmode="decimal" autocomplete="off" maxlength="9" pattern="\d+([.,]\d{1,2})?" title="Só números, ex.: 22,00" placeholder="ex.: 22,00 (em branco se ainda não souber)"></label><label>Observações<textarea id="mObs" rows="3" maxlength="500" placeholder="ex.: sem o texto, cliente quer só o símbolo"></textarea></label><label>Estado<select id="mEst"></select></label><div class="lin"><button>Salvar</button><button type="button" class="sec" id="mCan">Cancelar</button><button type="button" id="mDel">Remover marcação</button></div></form></div>
 <div id="zoom" role="dialog" aria-label="Foto ampliada"><img alt="Foto ampliada"></div>
 <script type="module">
 import {initializeApp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
@@ -453,7 +459,6 @@ function abrirMarca(msgId){
 ESTADOS.forEach(e=>{const o=document.createElement("option");o.value=o.textContent=e;$("mEst").appendChild(o)});
 $("mItem").onchange=()=>{const v=$("mItem").value;if(v==="")return;const it=mItens[Number(v)];if(!it)return;
   $("mNome").value=it.modelo||it.nome||$("mNome").value;$("mTam").value=it.tamanho||"";$("mPreco").value=it.preco!=null?precoTxt(it.preco):""};
-$("mEnvio").onclick=e=>{const b=e.target.closest("button[data-env]");if(!b)return;$("mNome").value=b.dataset.env;$("mTam").value="";$("mPreco").focus()};
 $("mCan").onclick=()=>{$("dlgMarca").hidden=true};
 document.addEventListener("keydown",e=>{if(e.key==="Escape")$("dlgMarca").hidden=true});
 $("dlgMarca").addEventListener("pointerdown",e=>{if(e.target===$("dlgMarca"))$("dlgMarca").hidden=true});
@@ -557,7 +562,6 @@ function copiarOrcamento(){
   const L=listaMarcas(cur);if(!L.length)return;
   const zero=L.filter(m=>!m.preco);
   if(zero.length&&!confirm("Estes itens estão com valor R$ 0,00:\n\n"+zero.map(m=>"- "+nomeOrc(m)).join("\n")+"\n\nOK para copiar mesmo assim?"))return;
-  if(!L.some(ehEnvio)&&!confirm("Nenhum envio (SEDEX, PAC ou Frete) foi marcado neste pedido.\n\nOK para copiar mesmo assim (ex.: retirada)?"))return;
   navigator.clipboard.writeText(textoOrcamento(L)).then(()=>avisoRapido("✔ Orçamento copiado."),()=>erro("Não consegui copiar."));
 }
 function copiarResumo(){
@@ -565,15 +569,67 @@ function copiarResumo(){
   const t="Pedidos de "+((c&&c.nome)||"cliente")+"\n"+L.map(m=>"\n"+textoMarca(m)+(m.obs?"\n   "+m.obs.replace(/\n/g,"\n   "):"")).join("\n");
   navigator.clipboard.writeText(t).then(()=>avisoRapido("✔ Resumo copiado."),()=>erro("Não consegui copiar."));
 }
+// ---- etapas do pedido: 1) itens  2) envio  3) pronto (copiar) ----
+let concluiu=false,reabrir=false,envSel="",envPreco="";
+const zerarEtapas=()=>{concluiu=false;reabrir=false;envSel="";envPreco=""};
+const ENVIOS=["SEDEX","PAC","FRETE","RETIRADA"];
+async function confirmarEnvio(){
+  const chatId=cur;if(!chatId||!envSel)return;
+  const marcas={};
+  listaMarcas(chatId).filter(ehEnvio).forEach(m=>{marcas[m.mid]=deleteField()}); // tira envios antigos (evita duplicar)
+  const corpo={marcas};
+  if(envSel==="RETIRADA"){corpo.semEnvio=true}
+  else{
+    const txt=envPreco.trim(),preco=txt?parsePreco(txt):null;
+    if(txt&&preco===null){erro("Valor do envio inválido. Use só números, ex.: 22,00");return}
+    if(preco===null&&!confirm("O envio está sem valor (R$ 0,00). Confirmar assim mesmo?"))return;
+    const ex=marcasDe(chatId)["_envio"],n=ex?ex.n:proximoN();
+    marcas["_envio"]={n,nome:envSel,tamanho:"",preco,obs:"",estado:ESTADOS[0],origem:"",modelo:null,em:ex?ex.em:Date.now()};
+    if(!ex)corpo.marcaSeq=n;
+    corpo.semEnvio=false;
+  }
+  erro("");
+  try{await setDoc(doc(db,"chats",chatId),corpo,{merge:true});reabrir=false;envSel="";envPreco="";desenharPedidos()}
+  catch(err){erro("Não consegui salvar o envio: "+(err.code||err.message))}
+}
+function caixaEnvio(){
+  const box=document.createElement("div");box.className="env";
+  const h=document.createElement("b");h.textContent="🚚 Etapa 2: defina o envio";box.appendChild(h);
+  const lin=document.createElement("div");lin.className="ch";
+  ENVIOS.forEach(e=>{
+    const b=btn(e==="RETIRADA"?"Retirada (sem envio)":e==="FRETE"?"Frete":e,()=>{envSel=e;desenharPedidos()},envSel===e?"":"sec");
+    b.setAttribute("aria-pressed",String(envSel===e));lin.appendChild(b);
+  });
+  box.appendChild(lin);
+  if(envSel&&envSel!=="RETIRADA"){
+    const l=document.createElement("label");l.textContent="Valor do envio (R$) ";
+    const i=document.createElement("input");i.inputMode="decimal";i.maxLength=9;i.placeholder="ex.: 22,00";i.value=envPreco;i.autocomplete="off";
+    i.oninput=()=>{envPreco=i.value};
+    i.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();confirmarEnvio()}});
+    l.appendChild(i);box.appendChild(l);
+  }
+  const ac=document.createElement("div");ac.className="ch";
+  if(envSel)ac.appendChild(btn("✔ Confirmar envio",confirmarEnvio));
+  ac.appendChild(btn("← Voltar aos itens",()=>{concluiu=false;reabrir=false;desenharPedidos()},"sec"));
+  box.appendChild(ac);
+  return box;
+}
 function desenharPedidos(){
   const p=$("pedidos");if(p.hidden||!cur)return;
   p.innerHTML="";
-  const L=listaMarcas(cur),top=document.createElement("div");top.className="topo";
-  const t=document.createElement("b");t.textContent=L.length?"📌 "+L.length+(L.length===1?" item marcado":" itens marcados"):"📌 Nada marcado ainda";if(L.some(m=>m.preco!=null))t.textContent+=" · "+fmtBRL(somaMarcas(L));top.appendChild(t);
-  if(L.length)top.append(btn("💰 Copiar orçamento",copiarOrcamento),btn("📁 Copiar para atalhos",copiarParaAtalhos),btn("📋 Copiar resumo",copiarResumo));
+  const c=chats.find(x=>x.id===cur)||{},L=listaMarcas(cur),Li=L.filter(m=>!ehEnvio(m)),Le=L.filter(ehEnvio);
+  const definido=Le.length>0||!!c.semEnvio,etapa=(definido&&!reabrir)?"pronto":(concluiu?"envio":"itens");
+  const top=document.createElement("div");top.className="topo";
+  const t=document.createElement("b");
+  t.textContent=Li.length?"📌 "+Li.length+(Li.length===1?" item":" itens"):"📌 Nada marcado ainda";
+  if(Li.some(m=>m.preco!=null))t.textContent+=" · "+fmtBRL(somaMarcas(Li));
+  if(etapa==="pronto"&&Le.length)t.textContent+=" + envio "+fmtBRL(somaMarcas(Le))+" = "+fmtBRL(somaMarcas(L));
+  top.appendChild(t);
+  if(etapa==="itens"&&Li.length)top.append(btn("✅ Concluir itens e definir envio",()=>{concluiu=true;desenharPedidos()}));
+  if(etapa==="pronto")top.append(btn("💰 Copiar orçamento",copiarOrcamento),btn("📁 Copiar para atalhos",copiarParaAtalhos),btn("📋 Copiar resumo",copiarResumo));
   p.appendChild(top);
-  if(!L.length){const v=document.createElement("div");v.className="vazio";v.textContent="Toque em “📌 Marcar” numa mensagem (no computador ele aparece ao passar o mouse) para destacar um pedido e anotar nome, tamanho e observações.";p.appendChild(v)}
-  L.forEach(m=>{
+  if(!L.length){const v=document.createElement("div");v.className="vazio";v.textContent="Toque em “📌 Marcar” numa mensagem (no computador ele aparece ao passar o mouse) para destacar um item (catálogo ou logomarca) e anotar nome, tamanho e observações. O envio é definido numa etapa separada.";p.appendChild(v)}
+  const linha=m=>{
     const msg=cache[m.msg||m.mid],it=document.createElement("div");it.className="it";
     if(msg&&msg.imagem){const i=document.createElement("img");i.src=msg.imagem;i.alt="Foto do pedido "+m.n;i.onclick=()=>ampliar(msg.imagem);it.appendChild(i)}
     const tx=document.createElement("div");tx.className="tx";
@@ -582,10 +638,25 @@ function desenharPedidos(){
     if(msg&&!m.msg&&!msg.imagem&&msg.texto){const q=document.createElement("small");q.textContent="“"+msg.texto.slice(0,80)+(msg.texto.length>80?"…":"")+"”";tx.appendChild(q)}
     if(m.obs){const o=document.createElement("div");o.className="ob";o.textContent=m.obs;tx.appendChild(o)}
     const bt=document.createElement("div");bt.className="bt";
-    bt.appendChild(btn("Ver na conversa",()=>verNaConversa(m.msg||m.mid)));
+    if(cache[m.msg||m.mid])bt.appendChild(btn("Ver na conversa",()=>verNaConversa(m.msg||m.mid)));
     bt.appendChild(btn("Editar",()=>abrirMarca(m.mid)));
     tx.appendChild(bt);it.appendChild(tx);p.appendChild(it);
-  });
+  };
+  Li.forEach(linha);
+  if(etapa==="envio")p.appendChild(caixaEnvio());
+  if(etapa==="pronto"){
+    const h=document.createElement("div");h.className="env";
+    const b=document.createElement("b");
+    b.textContent=Le.length?"🚚 Envio: "+Le.map(m=>m.nome+(m.preco!=null?" · "+fmtBRL(m.preco):"")).join(" + "):"🚚 Retirada (sem envio)";
+    h.appendChild(b);
+    const sm=document.createElement("small");sm.textContent=Le.length?"A pasta "+Le.map(m=>m.nome).join("/")+" com o valor é criada junto com os atalhos.":"Nenhuma pasta de envio será criada.";h.appendChild(sm);
+    h.appendChild(btn("Alterar envio",()=>{
+      reabrir=true;concluiu=true;
+      const e=Le[0];envSel=c.semEnvio&&!e?"RETIRADA":(e?String(e.nome).toUpperCase():"");
+      envPreco=e&&e.preco!=null?precoTxt(e.preco):"";desenharPedidos();
+    },"sec"));
+    p.appendChild(h);
+  }
 }
 $("pedBtn").onclick=()=>{
   const abre=$("pedidos").hidden;$("pedidos").hidden=!abre;$("pedBtn").setAttribute("aria-expanded",String(abre));
@@ -640,7 +711,7 @@ function desenharLista(){
 }
 
 function abrir(id){
-  if(id!==cur)gravador.descartar();
+  if(id!==cur){gravador.descartar();zerarEtapas()}
   cur=id;
   $("apagar").style.display="inline-block";$("sit").style.display="inline-block";$("renBtn").style.display="inline-block";$("pedBtn").style.display="inline-block";$("pedidos").hidden=true;$("pedBtn").setAttribute("aria-expanded","false");$("lembBtn").style.display="inline-block";$("lemb").hidden=true;$("lembBtn").setAttribute("aria-expanded","false");
   if(offMsgs)offMsgs();
@@ -1119,7 +1190,7 @@ $("busca").oninput=()=>{
 let itensFeitos=false;
 function itensGerais(){
   const out=[];
-  chats.forEach(c=>Object.entries(c.marcas||{}).forEach(([mid,m])=>{if(itensFeitos||m.estado!=="Feito")out.push({c,mid,m})}));
+  chats.forEach(c=>Object.entries(c.marcas||{}).forEach(([mid,m])=>{if(!ehEnvio(m)&&(itensFeitos||m.estado!=="Feito"))out.push({c,mid,m})}));
   return out.sort((a,b)=>(a.m.em||0)-(b.m.em||0));
 }
 function gruposItens(L){
