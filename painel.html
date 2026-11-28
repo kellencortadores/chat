@@ -258,6 +258,7 @@ function botaoCopiar(texto,id){
   b.onclick=async()=>{
     let t=texto;
     {const c=chats.find(x=>x.id===id),l=t.split("\n").filter((x,i)=>i===0||!/^Cliente:/.test(x));l.splice(1,0,"Cliente: "+((c&&c.nome)||"Cliente"));t=l.join("\n")}
+    t=t.split("\n").filter(l=>!/^Total dos modelos:/.test(l)).map(l=>l.replace(/\s+—\s+R\$\s*[\d.,]+\s*$/,"")).join("\n");
     try{await navigator.clipboard.writeText(t);b.textContent="✔ Copiado"}
     catch(e){erro("Não consegui copiar. Selecione o texto e copie.")}
     setTimeout(()=>{b.textContent="📋 Copiar pedido"},2000);
@@ -476,6 +477,49 @@ function verNaConversa(mid){
   const el=document.querySelector('#msgs .m[data-id="'+mid+'"]');
   if(el){el.scrollIntoView({block:"center"});el.classList.remove("flash");void el.offsetWidth;el.classList.add("flash")}
 }
+// ---- separar o pacote "🛒 Pedido do catálogo" em itens (um pedido marcado por modelo) ----
+function linhasDoPedido(texto){
+  const out=[];
+  texto.split("\n").forEach(l=>{
+    const m=l.match(/^\s*\d+\.\s+(.+?)(?:\s+—\s+R\$\s*([\d.,]+))?\s*$/);
+    if(m)out.push({nome:m[1].trim(),preco:m[2]?parsePreco(m[2].replace(/\./g,"").replace(",",".")):null});
+  });
+  return out;
+}
+async function separarPedido(msgId){
+  const chatId=cur,msg=cache[msgId],c=chats.find(q=>q.id===chatId);
+  if(!chatId||!msg||!msg.texto)return false;
+  if(c&&c.separados&&c.separados[msgId]){avisoRapido("Este pedido já foi separado em itens.");return false}
+  const linhas=linhasDoPedido(msg.texto);
+  if(!linhas.length){erro("Não encontrei itens numerados nesta mensagem.");return false}
+  let n=proximoN()-1;const marcas={};
+  linhas.forEach((l,i)=>{
+    n++;
+    const tm=l.nome.match(/^(.*\S)\s+(\d+(?:[.,]\d+)?\s*cm)$/i);
+    const prod=produtos.find(p=>(p.itens||[]).some(q=>q.nome===l.nome));
+    const it=prod&&prod.itens.find(q=>q.nome===l.nome);
+    const preco=l.preco!=null?l.preco:(it&&it.preco!=null?it.preco:null);
+    marcas[msgId+"_i"+(i+1)]={n,nome:tm?tm[1]:l.nome,tamanho:tm?tm[2].replace(/\s+/g,""):"",preco,obs:"",estado:ESTADOS[0],origem:"catalogo",
+      modelo:prod?{titulo:prod.titulo,tema:prod.tema||"",url:prod.url||""}:null,msg:msgId,em:Date.now()};
+  });
+  erro("");
+  try{
+    await setDoc(doc(db,"chats",chatId),{marcas,marcaSeq:n,separados:{[msgId]:true}},{merge:true});
+    avisoRapido("✔ "+linhas.length+(linhas.length===1?" item separado":" itens separados")+". Veja em 📌 Pedidos.");
+    return true;
+  }catch(err){erro("Não consegui separar: "+(err.code||err.message));return false}
+}
+function botaoSeparar(msgId){
+  const c=chats.find(q=>q.id===cur);let feito=!!(c&&c.separados&&c.separados[msgId]);
+  const b=document.createElement("button");b.type="button";b.className="copiar";
+  const rotulo=()=>{b.textContent=feito?"✂️ Itens separados (ver em Pedidos)":"✂️ Separar em itens"};rotulo();
+  b.onclick=async()=>{
+    if(feito){$("pedidos").hidden=false;$("pedBtn").setAttribute("aria-expanded","true");desenharPedidos();return}
+    if(await separarPedido(msgId)){feito=true;rotulo()}
+  };
+  return b;
+}
+
 // ---- orçamento: mesma estrutura do CriarListaPedido.ps1 (itens numerados, envio separado, total) ----
 const ehEnvio=m=>/^(frete|sedex|pac)$/i.test((m.nome||"").trim());
 const nomeOrc=m=>{const n=(m.nome||"").trim();if(/^pac$/i.test(n))return"PAC (Correios)";if(ehEnvio(m))return n.toUpperCase();return m.tamanho&&!n.toLowerCase().includes(m.tamanho.toLowerCase())?n+" "+m.tamanho:n};
@@ -487,6 +531,27 @@ function textoOrcamento(L){
   L.filter(m=>!ehEnvio(m)).forEach((m,i)=>{t+=lin(i+1,m)});
   L.filter(ehEnvio).forEach(m=>{t+=lin("",m)});
   return t+LIN+"\nTotal:"+fmtBRL(somaMarcas(L)).padStart(51)+"\n";
+}
+// ---- lista para o programa Atalhos_do_Painel.py: cria a pasta da cliente, os atalhos e as pastas locais ----
+async function copiarParaAtalhos(){
+  const L=listaMarcas(cur),c=chats.find(q=>q.id===cur);if(!L.length)return;
+  const semOrigem=L.filter(m=>m.origem!=="catalogo"&&m.origem!=="novo"&&!ehEnvio(m));
+  if(semOrigem.length&&!confirm(semOrigem.length+" item(ns) sem origem definida (catálogo ou novo) ficarão de fora:\n\n"+semOrigem.map(m=>"- "+nomeOrc(m)).join("\n")+"\n\nOK para copiar o resto?"))return;
+  const itens=[];
+  L.forEach(m=>{
+    const env=ehEnvio(m);
+    if(!env&&m.origem!=="catalogo"&&m.origem!=="novo")return;
+    const tam=(m.tamanho||"").replace(/\s+/g,"");
+    const base=(m.nome||"").trim();
+    const nome=env?base.toUpperCase():(tam&&!base.toLowerCase().includes(tam.toLowerCase())?base+" "+tam:base);
+    const msg=cache[m.msg||m.mid];
+    const it={n:m.n,tipo:!env&&m.origem==="catalogo"?"catalogo":"local",nome,preco:m.preco!=null?m.preco:null};
+    if(it.tipo==="local"&&!env&&!m.msg&&msg&&typeof msg.imagem==="string"&&msg.imagem.startsWith("data:image/"))it.imagem=msg.imagem;
+    itens.push(it);
+  });
+  if(!itens.length){erro("Nenhum item para copiar.");return}
+  try{await navigator.clipboard.writeText(JSON.stringify({v:1,cliente:(c&&c.nome)||"cliente",itens}));avisoRapido("✔ Lista copiada. Cole no programa Atalhos do Painel.")}
+  catch(e){erro("Não consegui copiar.")}
 }
 function copiarOrcamento(){
   const L=listaMarcas(cur);if(!L.length)return;
@@ -505,19 +570,19 @@ function desenharPedidos(){
   p.innerHTML="";
   const L=listaMarcas(cur),top=document.createElement("div");top.className="topo";
   const t=document.createElement("b");t.textContent=L.length?"📌 "+L.length+(L.length===1?" item marcado":" itens marcados"):"📌 Nada marcado ainda";if(L.some(m=>m.preco!=null))t.textContent+=" · "+fmtBRL(somaMarcas(L));top.appendChild(t);
-  if(L.length)top.append(btn("💰 Copiar orçamento",copiarOrcamento),btn("📋 Copiar resumo",copiarResumo));
+  if(L.length)top.append(btn("💰 Copiar orçamento",copiarOrcamento),btn("📁 Copiar para atalhos",copiarParaAtalhos),btn("📋 Copiar resumo",copiarResumo));
   p.appendChild(top);
   if(!L.length){const v=document.createElement("div");v.className="vazio";v.textContent="Toque em “📌 Marcar” numa mensagem (no computador ele aparece ao passar o mouse) para destacar um pedido e anotar nome, tamanho e observações.";p.appendChild(v)}
   L.forEach(m=>{
-    const msg=cache[m.mid],it=document.createElement("div");it.className="it";
+    const msg=cache[m.msg||m.mid],it=document.createElement("div");it.className="it";
     if(msg&&msg.imagem){const i=document.createElement("img");i.src=msg.imagem;i.alt="Foto do pedido "+m.n;i.onclick=()=>ampliar(msg.imagem);it.appendChild(i)}
     const tx=document.createElement("div");tx.className="tx";
     const b=document.createElement("b");b.textContent="#"+m.n+" "+m.nome;tx.appendChild(b);
     const sm=document.createElement("small");sm.textContent=[m.tamanho,m.preco!=null?fmtBRL(m.preco):"",rotuloOrigem(m),m.estado||ESTADOS[0],"marcado em "+new Date(m.em||Date.now()).toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit"})].filter(Boolean).join(" · ");tx.appendChild(sm);
-    if(msg&&!msg.imagem&&msg.texto){const q=document.createElement("small");q.textContent="“"+msg.texto.slice(0,80)+(msg.texto.length>80?"…":"")+"”";tx.appendChild(q)}
+    if(msg&&!m.msg&&!msg.imagem&&msg.texto){const q=document.createElement("small");q.textContent="“"+msg.texto.slice(0,80)+(msg.texto.length>80?"…":"")+"”";tx.appendChild(q)}
     if(m.obs){const o=document.createElement("div");o.className="ob";o.textContent=m.obs;tx.appendChild(o)}
     const bt=document.createElement("div");bt.className="bt";
-    bt.appendChild(btn("Ver na conversa",()=>verNaConversa(m.mid)));
+    bt.appendChild(btn("Ver na conversa",()=>verNaConversa(m.msg||m.mid)));
     bt.appendChild(btn("Editar",()=>abrirMarca(m.mid)));
     tx.appendChild(bt);it.appendChild(tx);p.appendChild(it);
   });
@@ -601,7 +666,7 @@ function abrir(id){
       }
       if(typeof m.audio==="string"&&m.audio.startsWith("data:audio/"))el.appendChild(player(d.id,m.audio));
       if(m.texto)el.appendChild(comLinks(m.texto));
-      if(m.de==="cliente"&&m.texto&&m.texto.startsWith("🛒 Pedido do catálogo"))el.appendChild(botaoCopiar(m.texto,id));
+      if(m.de==="cliente"&&m.texto&&m.texto.startsWith("🛒 Pedido do catálogo")){el.appendChild(botaoCopiar(m.texto,id));el.appendChild(botaoSeparar(d.id))}
       const s=document.createElement("small");s.textContent=hora(m.criado);el.appendChild(s);
       cache[d.id]=m;el.dataset.id=d.id;pintarMarca(el,d.id);
       box.appendChild(el);
